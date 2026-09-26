@@ -607,8 +607,10 @@ async function buildSessionAnswerPDF(sessionNum, sloNum, currentSessionData, sta
   }
 
   const pdfUri = doc.output('datauristring');
-  if (sloNum === 1) currentSessionData.slo1PdfUri = pdfUri;
-  else currentSessionData.slo2PdfUri = pdfUri;
+  if (currentSessionData) {
+    if (sloNum === 1) currentSessionData.slo1PdfUri = pdfUri;
+    else currentSessionData.slo2PdfUri = pdfUri;
+  }
 
   return pdfUri;
 }
