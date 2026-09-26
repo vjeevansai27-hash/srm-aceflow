@@ -3,3 +3,7 @@ cloudflared.exe
 *.log
 tunnel-url.txt
 .system_generated/
+*.ps1
+!server.ps1
+!start-tunnel.ps1
+!push-to-github.ps1

@@ -2,10 +2,12 @@
   "name": "aceflow-srm",
   "version": "1.0.0",
   "description": "AceFlow — Automated SRM E-Curricula Portal",
-  "main": "api/srm-proxy.js",
-  "type": "module",
+  "main": "netlify/functions/srm-proxy.js",
   "scripts": {
-    "start": "node api/srm-proxy.js"
+    "build": "echo 'AceFlow production build ready'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "keywords": ["srm", "e-curricula", "automation"],
   "author": "AceFlow",
