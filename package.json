@@ -1,0 +1,13 @@
+{
+  "name": "aceflow-srm",
+  "version": "1.0.0",
+  "description": "AceFlow — Automated SRM E-Curricula Portal",
+  "main": "api/srm-proxy.js",
+  "type": "module",
+  "scripts": {
+    "start": "node api/srm-proxy.js"
+  },
+  "keywords": ["srm", "e-curricula", "automation"],
+  "author": "AceFlow",
+  "license": "ISC"
+}

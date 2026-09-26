@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/api/srm-proxy", "destination": "/api/srm-proxy.js" },
+    { "source": "/api/db/:path*", "destination": "/api/db.js?action=:path*" },
+    { "source": "/api/db", "destination": "/api/db.js" },
+    { "source": "/api/client-log", "destination": "/api/client-log.js" },
+    { "source": "/(.*)", "destination": "/public/$1" }
+  ]
+}
