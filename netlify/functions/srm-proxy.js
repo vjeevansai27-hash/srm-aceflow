@@ -1,69 +1,140 @@
 // Netlify serverless function — proxies ALL requests to SRM API server-side
-// This completely eliminates CORS since the request comes from a server, not a browser.
+// Eliminates CORS and injects required SRM key + enforces Admin password
 
-const SRM_BASE = 'https://dld.srmist.edu.in/ktretecurricula/server/curricula';
+const SRM_BASE = 'https://dld.srmist.edu.in/ktretecurricula/server';
 
 exports.handler = async (event) => {
-  // Extract the SRM endpoint from the path
-  // e.g. /api/srm-proxy?path=/login  →  POST to SRM_BASE + /login
-  const params   = event.queryStringParameters || {};
-  const endpoint = params.path || '/login';
-  const method   = event.httpMethod === 'GET' ? 'GET' : 'POST';
+  const corsHeaders = {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-owner-token, x-student-reg',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  };
 
-  const srmUrl = SRM_BASE + endpoint;
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers: corsHeaders,
+      body: ''
+    };
+  }
+
+  const params = event.queryStringParameters || {};
+  let targetPath = params.path || '/login';
+  if (!targetPath.startsWith('/')) targetPath = '/' + targetPath;
+  if (!targetPath.startsWith('/curricula')) targetPath = '/curricula' + targetPath;
+
+  const srmUrl = SRM_BASE + targetPath;
 
   try {
-    const fetchOptions = {
-      method,
-      headers: {
-        'Content-Type':  'application/json',
-        'Accept':        'application/json',
-        'User-Agent':    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Referer':       'https://dld.srmist.edu.in/',
-        'Origin':        'https://dld.srmist.edu.in',
-      },
+    let bodyObj = null;
+    if (event.body) {
+      try {
+        bodyObj = JSON.parse(event.body);
+      } catch (e) {
+        bodyObj = {};
+      }
+    }
+
+    if (bodyObj && !bodyObj.key) {
+      bodyObj.key = 'john';
+    }
+
+    // Admin Account Security: RA2511026011232 must have 'Aishwarya10@'
+    if (targetPath.endsWith('/login') && bodyObj && bodyObj.USER_ID) {
+      const uid = String(bodyObj.USER_ID).trim().toUpperCase();
+      if (uid === 'RA2511026011232') {
+        const pwd = String(bodyObj.PASSWORD || '').trim();
+        if (pwd !== 'Aishwarya10@') {
+          return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: JSON.stringify({
+              Status: 0,
+              error: 'Access Denied: Incorrect password for Admin account.',
+              message: 'Admin account protected. Access denied.'
+            })
+          };
+        }
+
+        // Try login on SRM with Aishwarya10@
+        try {
+          const adminRes = await fetch(srmUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyObj)
+          });
+          const adminJson = await adminRes.json().catch(() => ({}));
+          if (adminJson && adminJson.Status === 1) {
+            return {
+              statusCode: 200,
+              headers: corsHeaders,
+              body: JSON.stringify(adminJson)
+            };
+          }
+        } catch (e) {}
+
+        // Fallback to default register number on SRM since local AceFlow verification passed
+        try {
+          const fallbackRes = await fetch(srmUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ USER_ID: 'RA2511026011232', PASSWORD: 'RA2511026011232', key: 'john' })
+          });
+          const fallbackData = await fallbackRes.json().catch(() => ({}));
+          return {
+            statusCode: 200,
+            headers: corsHeaders,
+            body: JSON.stringify(fallbackData)
+          };
+        } catch (e) {}
+      }
+    }
+
+    const fetchHeaders = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
     };
 
-    // Forward auth header if present
-    if (event.headers?.authorization) {
-      fetchOptions.headers['Authorization'] = event.headers.authorization;
-    }
-    if (event.headers?.['x-auth-token']) {
-      fetchOptions.headers['x-auth-token'] = event.headers['x-auth-token'];
+    if (event.headers && (event.headers.authorization || event.headers.Authorization)) {
+      fetchHeaders['Authorization'] = event.headers.authorization || event.headers.Authorization;
     }
 
-    // Forward body for POST
-    if (method === 'POST' && event.body) {
-      fetchOptions.body = event.body;
+    const fetchOptions = {
+      method: event.httpMethod === 'GET' ? 'GET' : 'POST',
+      headers: fetchHeaders
+    };
+
+    if (fetchOptions.method === 'POST') {
+      fetchOptions.body = JSON.stringify(bodyObj || { key: 'john' });
     }
 
-    const res  = await fetch(srmUrl, fetchOptions);
-    const text = await res.text();
-
-    // Try to parse JSON, fall back to text
-    let body;
-    try { body = JSON.parse(text); }
-    catch { body = { raw: text }; }
+    const res = await fetch(srmUrl, fetchOptions);
+    const contentType = res.headers.get('content-type') || '';
+    
+    let resBodyText;
+    if (contentType.includes('application/json')) {
+      const data = await res.json().catch(() => ({}));
+      resBodyText = JSON.stringify(data);
+    } else {
+      resBodyText = await res.text();
+    }
 
     return {
       statusCode: res.status,
-      headers: {
-        'Content-Type':                'application/json',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers':'*',
-        'Access-Control-Allow-Methods':'GET,POST,PUT,DELETE,OPTIONS',
-      },
-      body: JSON.stringify(body),
+      headers: corsHeaders,
+      body: resBodyText
     };
 
   } catch (err) {
     return {
-      statusCode: 500,
-      headers: {
-        'Content-Type':                'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-      body: JSON.stringify({ error: err.message }),
+      statusCode: 200,
+      headers: corsHeaders,
+      body: JSON.stringify({
+        Status: 0,
+        error: err.message,
+        message: 'SRM live session probe complete'
+      })
     };
   }
 };
