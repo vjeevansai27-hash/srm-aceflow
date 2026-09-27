@@ -291,10 +291,143 @@ async function uploadSLOToGoogleDrive(sessionNum, sloNum, triggerDownload = true
 
   if (triggerDownload) {
     downloadSLOAnswerPDF(sessionNum, sloNum);
-    toast(`📥 PDF downloaded & Google Drive link ready!`);
+  }
+
+  // If using Method 1 (Folder URL without Webhook), open Drive folder in new tab and guide user
+  if (!state.googleDrive?.webhookUrl && finalDriveUrl.startsWith('https://drive.google.com/')) {
+    try {
+      window.open(finalDriveUrl, '_blank');
+    } catch (_) {}
+    showDriveDropGuideModal(fileName, finalDriveUrl);
+  } else if (state.googleDrive?.webhookUrl) {
+    toast(`✅ Solved PDF uploaded into your Google Drive & submitted to SRM!`);
   }
 
   return finalDriveUrl;
+}
+
+function downloadSLOAnswerDOCX(sessionNum, sloNum) {
+  if (typeof getSessionWorksheetData !== 'function') {
+    toast('⚠ Worksheet data generator not ready');
+    return;
+  }
+  const data = getSessionWorksheetData(sessionNum, sloNum, currentSessionData, state);
+  const fileName = `${data.regNum}_${data.courseCode}_Sess${sessionNum}_SLO${sloNum}_Answers.doc`;
+
+  let qaHtml = '';
+  (data.questionsList || []).forEach((item, idx) => {
+    const qClean = (item.q || '').replace(/\n/g, '<br/>');
+    const aClean = (item.a || '').replace(/\n/g, '<br/>');
+    qaHtml += `
+      <div style="margin-top:16px;margin-bottom:12px">
+        <p style="font-weight:bold;color:#0f172a;margin-bottom:4px">
+          <strong>${idx + 1}. ${qClean}</strong>
+        </p>
+        <p style="font-weight:bold;color:#4338ca;margin-bottom:4px">
+          <strong>Answer:</strong>
+        </p>
+        <div style="color:#1e293b;line-height:1.6;margin-left:10px;background:#f8fafc;padding:10px 14px;border-left:3px solid #4338ca">
+          ${aClean}
+        </div>
+      </div>
+    `;
+  });
+
+  const docHtml = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+      <meta charset='utf-8'>
+      <title>${data.courseCode} Session ${sessionNum} Solved Answers</title>
+      <style>
+        body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #1e293b; line-height: 1.5; margin: 25mm 20mm; }
+        .hdr { text-align: center; margin-bottom: 12px; }
+        .hdr h2 { font-size: 13pt; margin: 3px 0; color: #0f172a; }
+        .hdr h3 { font-size: 11pt; margin: 2px 0; color: #334155; }
+        .table-meta { width: 100%; border-collapse: collapse; margin: 14px 0 20px 0; }
+        .table-meta td { border: 1px solid #cbd5e1; padding: 6px 12px; font-size: 10pt; }
+        .table-meta td strong { color: #334155; }
+      </style>
+    </head>
+    <body>
+      <div class="hdr">
+        <h2>SRM INSTITUTE OF SCIENCE AND TECHNOLOGY</h2>
+        <h3>FACULTY OF ENGINEERING AND TECHNOLOGY — SCHOOL OF COMPUTING</h3>
+        <h3>${data.courseCode} ${data.courseName}</h3>
+        <h3 style="margin-top:8px;color:#1e293b">${data.displayTopic}</h3>
+        <h4 style="margin:4px 0;color:#475569">${data.displaySlo}</h4>
+      </div>
+
+      <table class="table-meta">
+        <tr>
+          <td style="width:50%"><strong>Name:</strong> ${data.studentName}</td>
+          <td style="width:50%"><strong>Reg. No:</strong> ${data.regNum}</td>
+        </tr>
+        <tr>
+          <td><strong>Branch:</strong> ${data.branch}</td>
+          <td><strong>Date:</strong> ${data.dateStr}</td>
+        </tr>
+      </table>
+
+      <h3 style="border-bottom:2px solid #4338ca;padding-bottom:4px;color:#1e293b">Activity Worksheet — Solved Questions &amp; Detailed Solutions</h3>
+
+      ${qaHtml}
+    </body>
+    </html>
+  `;
+
+  const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword' });
+  const blobUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+  }, 15000);
+  toast(`⬇ Downloaded Solved DOCX: ${fileName}`);
+}
+
+function showDriveDropGuideModal(fileName, folderUrl) {
+  let modal = document.getElementById('driveDropModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'driveDropModal';
+    modal.className = 'modal-bg';
+    modal.innerHTML = `
+      <div class="modal-box" style="max-width:520px;text-align:left;padding:24px">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+          <div style="font-size:2rem">📂</div>
+          <div>
+            <h3 style="margin:0;color:#f8fafc;font-size:1.15rem">Google Drive Folder Opened</h3>
+            <div style="font-size:0.8rem;color:#10b981;font-weight:600">✓ Your downloaded answer sheet is ready</div>
+          </div>
+        </div>
+        <p style="font-size:0.85rem;color:#cbd5e1;line-height:1.5;margin-bottom:14px">
+          Your Google Drive folder has opened in the next browser tab.
+        </p>
+        <div style="background:#0b1122;border:1px solid #1e293b;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:0.82rem;color:#94a3b8;line-height:1.5">
+          <strong style="color:#f8fafc">Next step:</strong> Drag &amp; drop your downloaded file <code id="driveDropCode" style="color:#60a5fa;word-break:break-all">${fileName}</code> into your open Drive folder.<br><br>
+          <span style="color:#34d399">✓</span> Your genuine Google Drive folder link has already been filled into SRM e-Curricula and saved.
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:8px">
+          <button type="button" class="btn-srm-drive" style="font-size:0.78rem;padding:6px 12px" onclick="closeDriveDropModal(); openDriveModal();">⚙ Enable 100% Background Auto-Upload</button>
+          <button type="button" class="modal-confirm" style="background:#059669;padding:8px 18px" onclick="closeDriveDropModal()">Got it! (OK)</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  } else {
+    const codeEl = document.getElementById('driveDropCode');
+    if (codeEl) codeEl.textContent = fileName;
+    modal.classList.remove('hidden');
+  }
+}
+
+function closeDriveDropModal() {
+  const m = document.getElementById('driveDropModal');
+  if (m) m.classList.add('hidden');
 }
 
 function openDriveModal(isMandatory = false) {
@@ -1260,24 +1393,28 @@ function renderLiveSessionView(data) {
         <div class="slo-objective"><strong>Objective:</strong> ${escHtml(slo1Obj)}</div>
         <div class="slo-grid">
           <div class="slo-block">
-            <div class="slo-block-label">Question Worksheet</div>
+            <div class="slo-block-label" style="color:#94a3b8">📄 Question Paper (Blank Template from SRM)</div>
             <div class="slo-btn-group">
-              ${slo1Files.docx ? `<a href="${slo1Files.docx}" target="_blank" class="btn-srm-docx">⬇ Download DOCX</a>` : `<span style="font-size:0.8rem;color:#94a3b8">DOCX not found</span>`}
-              ${slo1Files.pdf  ? `<a href="${slo1Files.pdf}"  target="_blank" class="btn-srm-pdf">⬇ Download PDF</a>`   : `<span style="font-size:0.8rem;color:#94a3b8">PDF not found</span>`}
+              ${slo1Files.docx ? `<a href="${slo1Files.docx}" target="_blank" class="btn-srm-docx" style="background:#334155" title="Original blank question worksheet from SRM">⬇ Question DOCX (Blank)</a>` : `<span style="font-size:0.8rem;color:#94a3b8">DOCX not found</span>`}
+              ${slo1Files.pdf  ? `<a href="${slo1Files.pdf}"  target="_blank" class="btn-srm-pdf" style="background:#334155" title="Original blank question worksheet from SRM">⬇ Question PDF</a>`   : `<span style="font-size:0.8rem;color:#94a3b8">PDF not found</span>`}
             </div>
-            <div style="margin-top:12px;font-size:0.78rem;color:#64748b">
-              These are the actual worksheet questions downloaded from SRM.
+            <div style="margin-top:10px;font-size:0.75rem;color:#64748b;line-height:1.4">
+              ⚠️ Official blank question sheet from SRM. Solved answers are on the right ➔
             </div>
           </div>
-          <div class="slo-block">
+          <div class="slo-block" style="border:1px solid rgba(16,185,129,0.3);background:rgba(16,185,129,0.02)">
             <div class="slo-block-label" style="display:flex;align-items:center;justify-content:space-between">
-              <span>Answer Sheet (Personal Google Drive)</span>
+              <span style="color:#10b981;font-weight:700">✅ Solved Answer Sheet (Ready for Faculty)</span>
               ${isDriveLinked() ? `<span class="drive-pill connected" style="cursor:pointer" onclick="openDriveModal()">🟢 Personal Drive</span>` : `<span class="drive-pill unlinked" style="cursor:pointer" onclick="openDriveModal()">🔴 Link Personal Drive</span>`}
             </div>
-            <div class="slo-btn-group">
+            <div class="slo-btn-group" style="flex-wrap:wrap;gap:8px">
               <button class="btn-srm-answer" onclick="previewSLOAnswerPDF(${sessNum}, 1)">👁 Preview PDF</button>
-              <button class="btn-srm-docx" style="background:#059669" onclick="downloadSLOAnswerPDF(${sessNum}, 1)">⬇ Download PDF</button>
-              <button class="btn-srm-drive" onclick="uploadSLOToGoogleDrive(${sessNum}, 1)">☁ Upload to Drive</button>
+              <button class="btn-srm-docx" style="background:#059669" onclick="downloadSLOAnswerPDF(${sessNum}, 1)">⬇ Download Solved PDF</button>
+              <button class="btn-srm-docx" style="background:#4338ca" onclick="downloadSLOAnswerDOCX(${sessNum}, 1)">⬇ Download Solved DOCX</button>
+              ${state.googleDrive?.webhookUrl
+                ? `<button class="btn-srm-drive" onclick="uploadSLOToGoogleDrive(${sessNum}, 1)">⚡ Auto-Upload to Drive</button>`
+                : `<button class="btn-srm-drive" style="background:#0284c7" onclick="uploadSLOToGoogleDrive(${sessNum}, 1)">📂 Open Drive &amp; Drop PDF</button>`
+              }
             </div>
             <div class="slo-link-row">
               <input type="text" id="slo-link-1" class="slo-link-input" placeholder="https://drive.google.com/drive/folders/... or https://drive.google.com/file/d/..." value="${displayLink1}">
@@ -1310,24 +1447,28 @@ function renderLiveSessionView(data) {
         <div class="slo-objective"><strong>Objective:</strong> ${escHtml(slo2Obj)}</div>
         <div class="slo-grid">
           <div class="slo-block">
-            <div class="slo-block-label">Question Worksheet</div>
+            <div class="slo-block-label" style="color:#94a3b8">📄 Question Paper (Blank Template from SRM)</div>
             <div class="slo-btn-group">
-              ${slo2Files.docx ? `<a href="${slo2Files.docx}" target="_blank" class="btn-srm-docx">⬇ Download DOCX</a>` : `<span style="font-size:0.8rem;color:#94a3b8">DOCX not found</span>`}
-              ${slo2Files.pdf  ? `<a href="${slo2Files.pdf}"  target="_blank" class="btn-srm-pdf">⬇ Download PDF</a>`   : `<span style="font-size:0.8rem;color:#94a3b8">PDF not found</span>`}
+              ${slo2Files.docx ? `<a href="${slo2Files.docx}" target="_blank" class="btn-srm-docx" style="background:#334155" title="Original blank question worksheet from SRM">⬇ Question DOCX (Blank)</a>` : `<span style="font-size:0.8rem;color:#94a3b8">DOCX not found</span>`}
+              ${slo2Files.pdf  ? `<a href="${slo2Files.pdf}"  target="_blank" class="btn-srm-pdf" style="background:#334155" title="Original blank question worksheet from SRM">⬇ Question PDF</a>`   : `<span style="font-size:0.8rem;color:#94a3b8">PDF not found</span>`}
             </div>
-            <div style="margin-top:12px;font-size:0.78rem;color:#64748b">
-              These are the actual worksheet questions downloaded from SRM.
+            <div style="margin-top:10px;font-size:0.75rem;color:#64748b;line-height:1.4">
+              ⚠️ Official blank question sheet from SRM. Solved answers are on the right ➔
             </div>
           </div>
-          <div class="slo-block">
+          <div class="slo-block" style="border:1px solid rgba(16,185,129,0.3);background:rgba(16,185,129,0.02)">
             <div class="slo-block-label" style="display:flex;align-items:center;justify-content:space-between">
-              <span>Answer Sheet (Personal Google Drive)</span>
+              <span style="color:#10b981;font-weight:700">✅ Solved Answer Sheet (Ready for Faculty)</span>
               ${isDriveLinked() ? `<span class="drive-pill connected" style="cursor:pointer" onclick="openDriveModal()">🟢 Personal Drive</span>` : `<span class="drive-pill unlinked" style="cursor:pointer" onclick="openDriveModal()">🔴 Link Personal Drive</span>`}
             </div>
-            <div class="slo-btn-group">
+            <div class="slo-btn-group" style="flex-wrap:wrap;gap:8px">
               <button class="btn-srm-answer" onclick="previewSLOAnswerPDF(${sessNum}, 2)">👁 Preview PDF</button>
-              <button class="btn-srm-docx" style="background:#059669" onclick="downloadSLOAnswerPDF(${sessNum}, 2)">⬇ Download PDF</button>
-              <button class="btn-srm-drive" onclick="uploadSLOToGoogleDrive(${sessNum}, 2)">☁ Upload to Drive</button>
+              <button class="btn-srm-docx" style="background:#059669" onclick="downloadSLOAnswerPDF(${sessNum}, 2)">⬇ Download Solved PDF</button>
+              <button class="btn-srm-docx" style="background:#4338ca" onclick="downloadSLOAnswerDOCX(${sessNum}, 2)">⬇ Download Solved DOCX</button>
+              ${state.googleDrive?.webhookUrl
+                ? `<button class="btn-srm-drive" onclick="uploadSLOToGoogleDrive(${sessNum}, 2)">⚡ Auto-Upload to Drive</button>`
+                : `<button class="btn-srm-drive" style="background:#0284c7" onclick="uploadSLOToGoogleDrive(${sessNum}, 2)">📂 Open Drive &amp; Drop PDF</button>`
+              }
             </div>
             <div class="slo-link-row">
               <input type="text" id="slo-link-2" class="slo-link-input" placeholder="https://drive.google.com/drive/folders/... or https://drive.google.com/file/d/..." value="${displayLink2}">

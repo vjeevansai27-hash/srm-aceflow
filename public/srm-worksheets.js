@@ -727,44 +727,20 @@ function generateCourseSpecificQuestions(courseCode, rawNum, sloNum, sessionTopi
 // ═════════════════════════════════════════════════════════════════════
 // MAIN ANSWER PDF BUILDER
 // ═════════════════════════════════════════════════════════════════════
-async function buildSessionAnswerPDF(sessionNum, sloNum, currentSessionData, state) {
-  const rawCode = (state.currentSubject?.code || '21LEM202T').toUpperCase().trim();
+// ═════════════════════════════════════════════════════════════════════
+// EXTRACT SESSION WORKSHEET QUESTIONS & ANSWERS
+// ═════════════════════════════════════════════════════════════════════
+function getSessionWorksheetData(sessionNum, sloNum, currentSessionData, state) {
+  const rawCode = (state?.currentSubject?.code || '21LEM202T').toUpperCase().trim();
   const courseCode = rawCode;
-  const courseName = (state.currentSubject?.name || SRM_COURSE_NAMES[rawCode] || 'UNIVERSAL HUMAN VALUES').toUpperCase().trim();
-  const studentName = state.studentName || 'VADDI JEEVAN VENKATA RANGA SAI';
-  const regNum = state.regNum || 'RA2511026011232';
-  const branch = state.department || 'CSE (AI/ML)';
+  const courseName = (state?.currentSubject?.name || SRM_COURSE_NAMES[rawCode] || 'UNIVERSAL HUMAN VALUES').toUpperCase().trim();
+  const studentName = state?.studentName || 'VADDI JEEVAN VENKATA RANGA SAI';
+  const regNum = state?.regNum || 'RA2511026011232';
+  const branch = state?.department || 'CSE (AI/ML)';
   const dateStr = new Date().toLocaleDateString('en-GB');
 
-  if (typeof window.jspdf === 'undefined') return '';
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
-  const W = 210;
-  const M = 16;
-  const contentW = W - (M * 2);
-  let y = 14;
-
-  // Header Title - EXACT layout as official SRM Question PDF
-  doc.setFontSize(10.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 23, 42);
-  doc.text('SRM INSTITUTE OF SCIENCE AND TECHNOLOGY', W / 2, y, { align: 'center' });
-  y += 5;
-
-  doc.setFontSize(9);
-  doc.text('FACULTY OF ENGINEERING AND TECHNOLOGY', W / 2, y, { align: 'center' });
-  y += 4.5;
-
-  doc.text('SCHOOL OF COMPUTING', W / 2, y, { align: 'center' });
-  y += 4.5;
-
-  const deptUpper = (state.department || 'Department of Computational Intelligence').toUpperCase();
+  const deptUpper = (state?.department || 'Department of Computational Intelligence').toUpperCase();
   const deptStr = deptUpper.includes('DEPARTMENT') ? deptUpper : `DEPARTMENT OF ${deptUpper}`;
-  doc.text(deptStr, W / 2, y, { align: 'center' });
-  y += 4.5;
-
-  doc.text(`${courseCode} ${courseName}`, W / 2, y, { align: 'center' });
-  y += 7.5;
 
   const numMatch = String(sessionNum || '1').match(/\d+/);
   const rawNum = numMatch ? parseInt(numMatch[0], 10) : 1;
@@ -774,7 +750,7 @@ async function buildSessionAnswerPDF(sessionNum, sloNum, currentSessionData, sta
   let sessionTopic = '';
   if (currentSessionData?.sessStatus?.SESSION_NAME && !currentSessionData.sessStatus.SESSION_NAME.startsWith('Session')) {
     sessionTopic = currentSessionData.sessStatus.SESSION_NAME;
-  } else if (state.currentSession?.sess?.name && !state.currentSession.sess.name.match(/^Session\s*\d+$/i)) {
+  } else if (state?.currentSession?.sess?.name && !state.currentSession.sess.name.match(/^Session\s*\d+$/i)) {
     sessionTopic = state.currentSession.sess.name;
   } else if (currentSessionData?.qData?.sp?.title) {
     sessionTopic = currentSessionData.qData.sp.title;
@@ -802,47 +778,13 @@ async function buildSessionAnswerPDF(sessionNum, sloNum, currentSessionData, sta
   let displayTopic = sessionTopic.includes('Session') ? sessionTopic : `Session ${displaySessNum}: ${sessionTopic}`;
   let displaySlo = sloTitle.includes('SLO') ? sloTitle : `SLO ${sloNum}: ${sloTitle}`;
 
-  doc.setFontSize(9.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 41, 59);
-  const topicLines = doc.splitTextToSize(displayTopic, contentW);
-  doc.text(topicLines, M, y);
-  y += (topicLines.length * 4.8) + 1;
-
-  const sloLines = doc.splitTextToSize(displaySlo, contentW);
-  doc.text(sloLines, M, y);
-  y += (sloLines.length * 4.8) + 2.5;
-
-  // Clean non-overlapping student table
-  y = drawStudentHeaderTable(doc, M, y, contentW, studentName, regNum, branch, dateStr);
-
   // 3. Extract Questions & Answers List
-  // ─────────────────────────────────────────────────────────────────
-  // STRATEGY: The answer PDF must answer the EXACT same questions from
-  // the SRM question worksheet PDF. Priority order:
-  //   1. Live SRM portal data (sq = short questions, lq = long questions)
-  //   2. Static DB for this exact course/session combination
-  //   3. Subject-specific dynamic generator (never crosses subjects)
-  // ─────────────────────────────────────────────────────────────────
   let questionsList = [];
-
-  // Priority 1: LIVE SRM PORTAL DATA (currentSessionData.qData)
-  // SRM sends sq (short q), lq (long q) for the exact worksheet.
   const qData = currentSessionData?.qData;
   if (qData) {
     const rawSq = Array.isArray(qData.sq) ? qData.sq : [];
     const rawLq = Array.isArray(qData.lq) ? qData.lq : [];
-
-    // Build the question list from live SRM data, combining sq + lq properly.
-    // SLO 1 = primarily short questions; SLO 2 = primarily long questions.
-    // But ALWAYS include answers for all available items.
-    let liveItems = [];
-    if (sloNum === 1) {
-      liveItems = [...rawSq, ...rawLq];
-    } else {
-      liveItems = [...rawLq, ...rawSq];
-    }
-
+    let liveItems = (sloNum === 1) ? [...rawSq, ...rawLq] : [...rawLq, ...rawSq];
     questionsList = liveItems
       .map(item => ({
         q: cleanHtmlForPdf(item.QUESTION_DESC),
@@ -851,18 +793,78 @@ async function buildSessionAnswerPDF(sessionNum, sloNum, currentSessionData, sta
       .filter(x => x.q && x.q.length > 3);
   }
 
-  // Priority 2: STATIC REPOSITORY (for that exact course+session ONLY, never different session)
   if (questionsList.length === 0 && knownSLO?.qa?.length > 0) {
     questionsList = knownSLO.qa;
   }
 
-  // Priority 3: SUBJECT-AWARE DYNAMIC GENERATOR (strictly tailored to this courseCode only)
   if (questionsList.length === 0) {
     questionsList = generateCourseSpecificQuestions(courseCode, rawNum, sloNum, sessionTopic, sloTitle);
   }
 
+  return {
+    courseCode,
+    courseName,
+    deptStr,
+    studentName,
+    regNum,
+    branch,
+    dateStr,
+    displayTopic,
+    displaySlo,
+    questionsList
+  };
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// MAIN ANSWER PDF BUILDER
+// ═════════════════════════════════════════════════════════════════════
+async function buildSessionAnswerPDF(sessionNum, sloNum, currentSessionData, state) {
+  if (typeof window.jspdf === 'undefined') return '';
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  const W = 210;
+  const M = 16;
+  const contentW = W - (M * 2);
+  let y = 14;
+
+  const data = getSessionWorksheetData(sessionNum, sloNum, currentSessionData, state);
+
+  // Header Title - EXACT layout as official SRM Question PDF
+  doc.setFontSize(10.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text('SRM INSTITUTE OF SCIENCE AND TECHNOLOGY', W / 2, y, { align: 'center' });
+  y += 5;
+
+  doc.setFontSize(9);
+  doc.text('FACULTY OF ENGINEERING AND TECHNOLOGY', W / 2, y, { align: 'center' });
+  y += 4.5;
+
+  doc.text('SCHOOL OF COMPUTING', W / 2, y, { align: 'center' });
+  y += 4.5;
+
+  doc.text(data.deptStr, W / 2, y, { align: 'center' });
+  y += 4.5;
+
+  doc.text(`${data.courseCode} ${data.courseName}`, W / 2, y, { align: 'center' });
+  y += 7.5;
+
+  doc.setFontSize(9.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 41, 59);
+  const topicLines = doc.splitTextToSize(data.displayTopic, contentW);
+  doc.text(topicLines, M, y);
+  y += (topicLines.length * 4.8) + 1;
+
+  const sloLines = doc.splitTextToSize(data.displaySlo, contentW);
+  doc.text(sloLines, M, y);
+  y += (sloLines.length * 4.8) + 2.5;
+
+  // Clean non-overlapping student table
+  y = drawStudentHeaderTable(doc, M, y, contentW, data.studentName, data.regNum, data.branch, data.dateStr);
+
   // Render each question with answer immediately below it
-  questionsList.forEach((item, idx) => {
+  data.questionsList.forEach((item, idx) => {
     if (y > 245) { doc.addPage(); y = 16; }
 
     doc.setFontSize(9);
