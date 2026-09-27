@@ -1,25 +1,56 @@
 // ═════════════════════════════════════════════════════════════════════
 // SRM E-CURRICULA OFFICIAL WORKSHEET REPOSITORY & VERIFIED SOLVER
-// Handles distinct SLO 1 and SLO 2 generation for all courses & sessions
+// Dynamic Subject-Aware Solver: Strict 1-to-1 Course, Session & Slot Mapping
+// ZERO Cross-Subject Contamination: UHV, OS, DSA, OOD, and APP strictly isolated.
 // ═════════════════════════════════════════════════════════════════════
 
-function decodeHtmlEntities(str) {
-  if (!str) return '';
-  return str
-    .replace(/&mdash;/gi, ' — ')
-    .replace(/&ndash;/gi, ' – ')
-    .replace(/&rsquo;|&lsquo;/gi, "'")
-    .replace(/&rdquo;|&ldquo;/gi, '"')
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/&amp;/gi, '&')
+const SRM_COURSE_NAMES = {
+  '21LEM202T': 'UNIVERSAL HUMAN VALUES',
+  '21CSC202J': 'OPERATING SYSTEMS',
+  '21CSC201J': 'DATA STRUCTURES AND ALGORITHMS',
+  '21CSC101T': 'OBJECT ORIENTED DESIGN AND ANALYSIS',
+  '21CSC203P': 'ADVANCED PROGRAMMING PRACTICE'
+};
+
+function cleanHtmlForPdf(html) {
+  if (!html) return '';
+  let s = String(html)
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*[\/]?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    .replace(/<\/tr>/gi, '\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '- ')
+    .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&rsquo;|&lsquo;/gi, "'")
+    .replace(/&rdquo;|&ldquo;/gi, '"')
+    .replace(/&mdash;/gi, ' - ')
+    .replace(/&ndash;/gi, ' - ')
+    .replace(/&hellip;/gi, '...')
+    // Map non-ASCII quotes, dashes, and bullets to standard ASCII
+    .replace(/[\u2018\u2019\u0060\u00B4]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, ' - ')
+    .replace(/[\u2022\u25CF\u25AA\u2023]/g, '- ')
+    .replace(/[\u2026]/g, '...')
+    .replace(/[^\x00-\x7F]/g, ' ')
+    .replace(/\r/g, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
+  return s;
+}
+
+function decodeHtmlEntities(str) {
+  return cleanHtmlForPdf(str);
 }
 
 function drawStudentHeaderTable(doc, M, y, contentW, studentName, regNum, branch, dateStr) {
@@ -44,7 +75,6 @@ function drawStudentHeaderTable(doc, M, y, contentW, studentName, regNum, branch
   doc.text(nameLines, M + 22, y + 5);
   doc.text(String(regNum || ''), M + (contentW / 2) + 24, y + 5);
 
-  // Safely wrap branch inside left column so it never overlaps the Date column
   const branchLines = doc.splitTextToSize(branch || 'Engineering', (contentW / 2) - 26);
   doc.text(branchLines, M + 22, y + 11);
   doc.text(String(dateStr || ''), M + (contentW / 2) + 24, y + 11.5);
@@ -52,394 +82,320 @@ function drawStudentHeaderTable(doc, M, y, contentW, studentName, regNum, branch
   return y + tableH + 6;
 }
 
+// ═════════════════════════════════════════════════════════════════════
+// SRM VERIFIED WORKSHEET DATABASE (ORGANIZED STRICTLY BY COURSE CODE)
+// ═════════════════════════════════════════════════════════════════════
 const SRM_WORKSHEETS_DB = {
-  '21CSC203P': {
+  // ─────────────────────────────────────────────────────────────────
+  // 21LEM202T: UNIVERSAL HUMAN VALUES
+  // ─────────────────────────────────────────────────────────────────
+  '21LEM202T': {
     101: {
       1: {
-        topic: 'Session 1: Introduction to Programming Languages',
-        slo: 'SLO 1: Elements of Programming Languages',
+        topic: 'Introduction to Value Education and Self Exploration',
+        slo: 'SLO 1: Need, Basic Guidelines, and Content of Value Education',
         qa: [
           {
-            q: 'What is the syntax and semantics of the following Java statement: int x = 5 + 3;?',
-            a: 'Syntax Analysis:\n• "int" is the reserved primitive type keyword specifying a 32-bit signed two\'s complement integer.\n• "x" is the variable identifier serving as a symbolic reference to a memory location.\n• "=" is the assignment operator transferring the right-hand evaluated value to the variable.\n• "5 + 3" is an additive arithmetic expression consisting of integer literals "5" and "3" joined by "+".\n• ";" is the statement terminator mandated by Java grammar rules.\n\nSemantics Analysis:\n• Expression Evaluation: The runtime evaluates the binary addition (5 + 3) to produce the integer literal 8.\n• Allocation & Storage: A 4-byte memory slot is allocated on the stack frame for variable "x". The binary value 8 (0x00000008) is stored into that location.'
+            q: 'Explain the need for Value Education in engineering and contemporary professional life.',
+            a: 'Value education provides the fundamental basis for all technological and professional endeavors. While technical education equips students with the "how-to" (skills, competence, and tools), value education clarifies the "what-to-do" (purpose, direction, and human values). In the absence of value education, technological proficiency risks being misdirected towards resource exploitation, ecological degradation, and societal conflict. Value education enables an individual to realize right understanding, live in mutual happiness with other human beings, and achieve mutual prosperity with rest of nature.'
           },
           {
-            q: 'Identify lexical tokens in a simple Java program.',
-            a: 'A token is the smallest individual lexical unit recognized by the compiler during lexical analysis.\nIn the sample statement "int count = 10;":\n1. Keyword: "int" (reserved data type keyword)\n2. Identifier: "count" (user-defined variable name)\n3. Operator: "=" (assignment operator)\n4. Literal: "10" (decimal integer literal)\n5. Separator/Punctuator: ";" (statement terminator)\n\nIn a complete Java program, tokens include:\n• Delimiters: { }, ( ), [ ], commas, semicolons\n• Operators: Arithmetic (+, -, *, /), Relational (==, !=, <, >), Logical (&&, ||, !)\n• Identifiers: Class names, method names, variable names\n• Literals: String, numeric, boolean literals.'
-          },
-          {
-            q: 'Modify a sample program to demonstrate the use of grammar rules in Java.',
-            a: 'Java follows strict Context-Free Grammar (CFG) rules defined in the Java Language Specification (JLS).\n\nInvalid Program (Violating Java Grammar):\nclass Broken {\n    main() {  // Error: Missing return type, access modifiers, parameters\n        x = 10  // Error: Missing type declaration and semicolon\n        System.out.println(x) // Error: Missing semicolon\n    }\n}\n\nCorrected Program (Conforming to Grammar Rules):\npublic class GrammarRulesDemo {\n    // Grammar Rule 1: Method must specify access modifier, return type, and parameter list\n    public static void main(String[] args) {\n        // Grammar Rule 2: Declaration syntax -> Type Identifier [= Expression];\n        int x = 10;\n        \n        // Grammar Rule 3: Valid method invocation syntax: Class.field.method(argument)\n        System.out.println("Valid grammar execution, value of x = " + x);\n    }\n}'
+            q: 'Describe the process of Self-Exploration and its two fundamental components: Natural Acceptance and Experiential Validation.',
+            a: 'Self-exploration is an observational process of observing inside oneself, verifying proposals on the basis of Natural Acceptance, and experientially validating them through living.\n1. Proposal Verification: Every principle in UHV is presented as a proposal to be investigated, not believed blindly.\n2. Natural Acceptance: The innate, unconditional human faculty that recognizes what is naturally right, invariant with time, place, or peer conditioning.\n3. Experiential Validation: Validating proposals in behavior with human beings (leading to mutual happiness) and in work with material nature (leading to mutual prosperity).'
           }
         ]
       },
       2: {
-        topic: 'Session 1: Introduction to Programming Languages',
-        slo: 'SLO 2: Language Classification',
+        topic: 'Continuous Happiness and Prosperity as Basic Human Aspirations',
+        slo: 'SLO 2: Human Aspirations and Right Priority',
         qa: [
           {
-            q: 'Classify Java as compiled/interpreted and explain why.',
-            a: 'Java is classified as a Two-Stage Hybrid (Both Compiled and Interpreted) programming language.\n\n1. Compilation Phase: Java source code (.java) is compiled by "javac" not into machine assembly, but into an architecture-neutral intermediate binary representation called Java Bytecode (.class).\n\n2. Interpretation & JIT Phase: The Java Virtual Machine (JVM) interprets bytecode into platform-specific machine code at runtime. Modern JVMs utilize Just-In-Time (JIT) compilation (HotSpot) to compile frequently executed bytecode directly into native instructions for near-native execution speed.\n\nWhy this classification matters: It enables Java\'s core design philosophy: "Write Once, Run Anywhere" (WORA) across heterogeneous operating systems.'
-          },
-          {
-            q: 'Write a simple Java program and explain how it is converted to bytecode.',
-            a: 'Java Source Code (BytecodeDemo.java):\npublic class BytecodeDemo {\n    public static void main(String[] args) {\n        int a = 15;\n        int b = 25;\n        int sum = a + b;\n        System.out.println("Sum = " + sum);\n    }\n}\n\nConversion Process to Bytecode:\n1. Running "javac BytecodeDemo.java" parses the AST and generates "BytecodeDemo.class".\n2. Disassembled bytecode instructions (via javap -c):\n   • bipush 15   -> Pushes integer constant 15 onto operand stack\n   • istore_1    -> Stores into local variable 1 (a)\n   • bipush 25   -> Pushes integer constant 25 onto operand stack\n   • istore_2    -> Stores into local variable 2 (b)\n   • iload_1     -> Loads variable 1 onto operand stack\n   • iload_2     -> Loads variable 2 onto operand stack\n   • iadd        -> Adds top two integers on stack\n   • istore_3    -> Stores result into variable 3 (sum)\n3. The JVM stack-based execution engine processes these instructions on any architecture.'
-          },
-          {
-            q: 'Differentiate between low-level and high-level languages with examples.',
-            a: 'Comparison of Language Classifications:\n\n1. Abstraction Level:\n• Low-Level: Minimal or no abstraction from machine hardware architecture.\n• High-Level: Strong abstraction; hides CPU registers, memory addresses, and system calls.\n\n2. Readability & Syntax:\n• Low-Level: Cryptic mnemonics or binary hex codes (e.g., MOV EAX, [EBX]). Difficult to debug.\n• High-Level: Natural English-like syntax (e.g., if (x > 0) print(x)). Highly readable and maintainable.\n\n3. Portability:\n• Low-Level: Machine dependent; assembly written for x86 cannot run on ARM without rewriting.\n• High-Level: Highly portable; source code or bytecode runs across diverse platforms.\n\n4. Memory Management:\n• Low-Level: Direct manual register and memory allocation.\n• High-Level: Automatic garbage collection and managed memory heaps.\n\nExamples:\n• Low-Level: Assembly Language, Machine Code.\n• High-Level: Java, Python, C++, C#.'
-          }
-        ]
-      }
-    },
-    102: {
-      1: {
-        topic: 'Session 2: Programming Language Theory',
-        slo: 'SLO 1: Language Theory Concepts',
-        qa: [
-          {
-            q: 'What is type checking? Demonstrate static vs dynamic typing using Java.',
-            a: 'Type checking is the process of verifying and enforcing the constraints of types in a programming language to prevent type errors (e.g. attempting to divide an integer by a string).\n\nStatic Typing (Java):\nTypes are checked at compile time before execution. Variable types must be declared explicitly.\nExample:\nint age = 20; // Valid\n// age = "Twenty"; // Compile-time error: Type mismatch\n\nDynamic Typing Simulation in Java:\nDynamically typed languages check types at runtime. In Java, dynamically typed behavior can be simulated using the Object type or VarHandle reflection:\nObject dynamicVar = 100; // Stores Integer\ndynamicVar = "Now I am a String"; // Valid at runtime, type checked dynamically'
-          },
-          {
-            q: 'Write a Java program showing variable scope.',
-            a: 'public class ScopeDemo {\n    // 1. Class/Instance Scope (accessible throughout the class)\n    private int instanceVar = 50;\n    \n    // 2. Class/Static Scope (shared across all instances)\n    public static String staticVar = "Global Class Scope";\n\n    public void testScope() {\n        // 3. Method/Local Scope (accessible only within this method)\n        int localVar = 10;\n        \n        if (localVar > 5) {\n            // 4. Block Scope (accessible only inside this if block)\n            int blockVar = 99;\n            System.out.println("Inside block: blockVar = " + blockVar + ", localVar = " + localVar);\n        }\n        // blockVar is out of scope here and cannot be accessed\n        System.out.println("Method scope: localVar = " + localVar + ", instanceVar = " + instanceVar);\n    }\n}'
-          },
-          {
-            q: 'Explain the difference between binding time and run-time with code examples.',
-            a: 'Binding Time refers to the moment in the program lifecycle when an association between an attribute and an entity is made.\n\n1. Static Binding (Compile-time Binding):\nOccurs before runtime. Overloaded methods and private/final/static methods are bound at compile time based on reference types.\nExample:\nclass MathUtil {\n    static int add(int a, int b) { return a + b; }\n    static double add(double a, double b) { return a + b; }\n}\n// The compiler binds MathUtil.add(2, 3) to the integer version at compile time.\n\n2. Dynamic Binding (Run-time Binding):\nOccurs while the program is executing. Overridden virtual methods are resolved dynamically based on the actual runtime object.\nExample:\nclass Animal { void sound() { System.out.println("Animal sound"); } }\nclass Dog extends Animal { void sound() { System.out.println("Bark"); } }\nAnimal a = new Dog();\na.sound(); // At runtime, JVM determines actual instance is Dog and prints "Bark".'
-          }
-        ]
-      },
-      2: {
-        topic: 'Session 2: Programming Language Theory',
-        slo: 'SLO 2: Abstraction & Specification',
-        qa: [
-          {
-            q: 'Write a Java interface and implement it in a class.',
-            a: '// Interface specification defining the contract\ninterface PaymentGateway {\n    boolean processPayment(double amount);\n    String getTransactionId();\n}\n\n// Implementing class fulfilling the contract\nclass CreditCardPayment implements PaymentGateway {\n    private String txnId;\n    \n    @Override\n    public boolean processPayment(double amount) {\n        this.txnId = "TXN_" + System.currentTimeMillis();\n        System.out.println("Processing credit card payment of $" + amount + " [ID: " + txnId + "]");\n        return true;\n    }\n    \n    @Override\n    public String getTransactionId() {\n        return txnId;\n    }\n}'
-          },
-          {
-            q: 'Demonstrate abstraction using access modifiers.',
-            a: 'Abstraction hides internal implementation details while exposing a clean public interface using access modifiers (private, protected, public):\n\npublic class BankAccount {\n    // Private state: Hidden from outside interference\n    private double balance;\n    private String accountNumber;\n\n    public BankAccount(String accNum, double initialDeposit) {\n        this.accountNumber = accNum;\n        this.balance = initialDeposit;\n    }\n\n    // Public methods: Abstract operations provided to clients\n    public void deposit(double amount) {\n        if (amount > 0) balance += amount;\n    }\n\n    public boolean withdraw(double amount) {\n        if (amount > 0 && amount <= balance) {\n            balance -= amount;\n            return true;\n        }\n        return false;\n    }\n\n    public double getBalance() { return balance; }\n}'
-          },
-          {
-            q: 'Give a real-world analogy for abstraction and relate it to Java classes.',
-            a: 'Real-World Analogy: Car Acceleration Pedal\n• When a driver presses the accelerator pedal, the car speeds up.\n• The driver does not need to know about fuel injection timing, spark plug firing sequences, valve openings, or crankshaft rotations.\n• The accelerator pedal acts as an Abstract Interface, hiding the complex internal mechanical implementation.\n\nRelation to Java Classes:\n• In Java, a class like "Car" provides public methods such as "accelerate()" and "brake()".\n• Complex internal algorithms, hardware driver hooks, and private variables (e.g. "fuelFlowRate", "cylinderPressure") are marked "private".\n• Consumers of the Car object interact solely with the public interface without coupling to internal details.'
-          }
-        ]
-      }
-    },
-    103: {
-      1: {
-        topic: 'Session 3: Structured Programming & Bohm-Jacopini',
-        slo: 'SLO 1: Bohm-Jacopini Theorem',
-        qa: [
-          {
-            q: 'Identify and implement the three control structures (sequence, selection, iteration) in Java.',
-            a: 'According to the Bohm-Jacopini Theorem, any computable function can be expressed using only three basic control structures:\n\n1. Sequence: Linear top-to-bottom step execution\nint a = 10;\nint b = 20;\nint sum = a + b;\n\n2. Selection: Decision-making based on conditions (if-else / switch)\nif (sum >= 30) {\n    System.out.println("Threshold met");\n} else {\n    System.out.println("Below threshold");\n}\n\n3. Iteration: Repeated execution of a block while condition holds (while / for)\nfor (int i = 1; i <= 3; i++) {\n    System.out.println("Iteration count: " + i);\n}'
-          },
-          {
-            q: 'Convert a Java goto-like scenario (nested if-break) into structured code.',
-            a: '// Unstructured code using labeled breaks (goto-like spaghetti logic):\nstartBlock: {\n    int val = 12;\n    if (val < 0) break startBlock;\n    if (val % 2 != 0) break startBlock;\n    System.out.println("Valid positive even number: " + val);\n}\n\n// Converted into structured programming using pure selection and guard conditions:\npublic void processValue(int val) {\n    if (val >= 0 && val % 2 == 0) {\n        System.out.println("Valid positive even number: " + val);\n    }\n}'
-          },
-          {
-            q: 'Explain the importance of structure in improving program readability.',
-            a: 'Importance of Structured Programming:\n1. Single Entry, Single Exit (SESE): Each module or code block has one defined entry point and exit point, eliminating unexpected jumps.\n2. Modularity: Complex tasks are decomposed into manageable sub-functions.\n3. Maintainability & Debugging: Errors are localized within self-contained blocks without side-effects cascading through arbitrary jumps.\n4. Formal Verification: Structured flow allows mathematical reasoning about state transitions and program correctness.'
-          }
-        ]
-      },
-      2: {
-        topic: 'Session 3: Structured Programming & Bohm-Jacopini',
-        slo: 'SLO 2: Apply Control Structures',
-        qa: [
-          {
-            q: 'Prime number: Check whether a number is prime in Java.',
-            a: 'public class PrimeCheck {\n    public static boolean isPrime(int n) {\n        if (n <= 1) return false;\n        if (n <= 3) return true;\n        if (n % 2 == 0 || n % 3 == 0) return false;\n        for (int i = 5; i * i <= n; i += 6) {\n            if (n % i == 0 || n % (i + 2) == 0) return false;\n        }\n        return true;\n    }\n    public static void main(String[] args) {\n        int test = 29;\n        System.out.println(test + " is prime? " + isPrime(test));\n    }\n}'
-          },
-          {
-            q: 'Factorial: Calculate factorial of a number using iteration in Java.',
-            a: 'public class FactorialCalculator {\n    public static long calculateFactorial(int n) {\n        if (n < 0) throw new IllegalArgumentException("Factorial undefined for negatives");\n        long fact = 1;\n        for (int i = 1; i <= n; i++) {\n            fact *= i;\n        }\n        return fact;\n    }\n    public static void main(String[] args) {\n        int num = 6;\n        System.out.println("Factorial of " + num + " = " + calculateFactorial(num));\n    }\n}'
-          },
-          {
-            q: 'Largest: Find the largest among three numbers using selection statements.',
-            a: 'public class LargestNumber {\n    public static int findLargest(int a, int b, int c) {\n        if (a >= b && a >= c) {\n            return a;\n        } else if (b >= a && b >= c) {\n            return b;\n        } else {\n            return c;\n        }\n    }\n    public static void main(String[] args) {\n        System.out.println("Largest (45, 89, 23): " + findLargest(45, 89, 23));\n    }\n}'
-          }
-        ]
-      }
-    },
-    104: {
-      1: {
-        topic: 'Session 4: Multiple Programming Paradigms',
-        slo: 'SLO 1: Define Paradigms',
-        qa: [
-          {
-            q: 'Define procedural, OOP, and functional paradigms with Java examples.',
-            a: '1. Procedural Paradigm: Focuses on step-by-step procedures and routine functions operating on shared data.\nExample: static int add(int a, int b) { return a + b; }\n\n2. Object-Oriented Paradigm (OOP): Organizes software design around data or objects, combining state and behavior.\nExample: class Calculator { int val; void add(int x) { val += x; } }\n\n3. Functional Paradigm: Treats computation as mathematical function evaluations, avoiding mutable state and side effects.\nExample: BinaryOperator<Integer> add = (a, b) -> a + b;'
-          },
-          {
-            q: 'Write the same logic using both procedural and object-oriented approaches.',
-            a: '// Procedural Approach (Functions and separate data record):\nclass StudentRecord { String name; int marks; }\nclass ProceduralDemo {\n    static boolean isPassed(StudentRecord s) { return s.marks >= 50; }\n}\n\n// Object-Oriented Approach (Encapsulated state and behavior):\nclass Student {\n    private String name;\n    private int marks;\n    public Student(String name, int marks) { this.name = name; this.marks = marks; }\n    public boolean isPassed() { return this.marks >= 50; }\n}'
-          },
-          {
-            q: 'Identify Java features that support more than one paradigm.',
-            a: 'Java is a Multi-Paradigm language supporting:\n• Classes & Objects for Object-Oriented Programming (Encapsulation, Polymorphism)\n• Static methods and primitive types for Procedural Programming\n• Lambda expressions and the java.util.function package for Functional Programming\n• Java Stream API for Declarative & Functional pipeline processing\n• Generics for Generic/Parametric Programming'
-          }
-        ]
-      },
-      2: {
-        topic: 'Session 4: Multiple Programming Paradigms',
-        slo: 'SLO 2: Multi-Paradigm Use',
-        qa: [
-          {
-            q: 'Write a Java program using both class and lambda (OOP + functional).',
-            a: 'import java.util.*;\nimport java.util.function.Predicate;\n\n// OOP: Class encapsulating Employee state and methods\nclass Employee {\n    String name;\n    double salary;\n    Employee(String name, double salary) { this.name = name; this.salary = salary; }\n}\n\npublic class MultiParadigmDemo {\n    public static void main(String[] args) {\n        List<Employee> list = Arrays.asList(new Employee("Alice", 75000), new Employee("Bob", 45000));\n        \n        // Functional: Lambda predicate filtering high earners\n        Predicate<Employee> highEarner = emp -> emp.salary > 50000;\n        list.stream().filter(highEarner).forEach(e -> System.out.println(e.name + " is a high earner"));\n    }\n}'
-          },
-          {
-            q: 'Why is Java considered a multi-paradigm language?',
-            a: 'Java is multi-paradigm because it is not restricted to pure OOP:\n1. It supports Imperative/Procedural code via static methods and primitive types.\n2. It supports Class-based Object-Oriented programming with robust type hierarchies.\n3. With Java 8+, it natively supports Functional Programming via first-class function representations (lambdas, method references, Streams).\n4. It supports Generic Programming via type parameterization.'
-          },
-          {
-            q: 'Convert a procedural Java code into an object-oriented version.',
-            a: '// Before: Procedural (Loose data and external procedures)\nclass ProceduralAccount {\n    static double balance = 1000;\n    static void withdraw(double amt) { balance -= amt; }\n}\n\n// After: Object-Oriented (Encapsulated entity with data integrity)\npublic class BankAccount {\n    private double balance;\n    public BankAccount(double initial) { this.balance = initial; }\n    public void withdraw(double amt) {\n        if (amt > 0 && amt <= balance) balance -= amt;\n    }\n    public double getBalance() { return balance; }\n}'
-          }
-        ]
-      }
-    },
-    105: {
-      1: {
-        topic: 'Session 5: Programming Paradigm Hierarchy',
-        slo: 'SLO 1: Classify Paradigms',
-        qa: [
-          {
-            q: 'Categorize Java, Prolog, SQL, and Python based on paradigm.',
-            a: '1. Java: Primarily Object-Oriented, with multi-paradigm support for Imperative/Procedural and Functional (via Lambdas/Streams).\n2. Prolog: Pure Logic Programming paradigm based on Horn clauses and unification.\n3. SQL: Declarative Domain-Specific Language for relational database querying.\n4. Python: Highly Multi-Paradigm supporting Object-Oriented, Imperative, and Functional programming paradigms.'
-          },
-          {
-            q: 'Create a table showing imperative, declarative, logic, and functional features.',
-            a: 'Paradigm Comparison:\n• Imperative: Focuses on HOW to compute via mutable state transitions and sequential commands (e.g. C, Pascal).\n• Declarative: Focuses on WHAT to compute without specifying step-by-step control flow (e.g. SQL, HTML).\n• Logic: Based on mathematical logic, axioms, inference rules, and goals (e.g. Prolog, Datalog).\n• Functional: Based on mathematical function evaluation, immutability, and pure functions without side effects (e.g. Haskell, Lisp).'
-          },
-          {
-            q: 'Explain the hierarchical relationship between paradigms.',
-            a: 'Programming paradigms are organized hierarchically:\n1. Top-Level Divide: Imperative (State-driven) vs. Declarative (Value-driven).\n2. Imperative Sub-branches: Structured, Procedural, Object-Oriented, and Parallel/Concurrent.\n3. Declarative Sub-branches: Functional, Logic, Constraint-based, and Domain-Specific (DSL).\nModern high-level languages like Java sit at the intersection, adopting features from multiple hierarchy branches.'
-          }
-        ]
-      },
-      2: {
-        topic: 'Session 5: Programming Paradigm Hierarchy',
-        slo: 'SLO 2: Compare Paradigms',
-        qa: [
-          {
-            q: 'Compare object-oriented and functional paradigms using Java.',
-            a: 'Comparison in Java:\n\n1. State Management:\n• OOP: State is encapsulated inside mutable objects.\n• Functional: State is immutable; functions return new data structures.\n\n2. Primary Abstraction:\n• OOP: Classes, objects, inheritance, and polymorphic interfaces.\n• Functional: Pure functions, lambdas, and function composition.\n\n3. Code Example:\nOOP Approach:\nList<Integer> evens = new ArrayList<>();\nfor (int n : list) { if (n % 2 == 0) evens.add(n); }\n\nFunctional Stream Approach:\nList<Integer> evens = list.stream().filter(n -> n % 2 == 0).collect(Collectors.toList());'
-          },
-          {
-            q: 'Demonstrate how a problem is solved differently in procedural and object-oriented Java code.',
-            a: 'Problem: Calculate the area and perimeter of a Rectangle.\n\nProcedural Approach:\nclass ProceduralShape {\n    static double area(double w, double h) { return w * h; }\n    static double perimeter(double w, double h) { return 2 * (w + h); }\n}\n\nObject-Oriented Approach:\npublic class Rectangle {\n    private final double width, height;\n    public Rectangle(double width, double height) { this.width = width; this.height = height; }\n    public double area() { return width * height; }\n    public double perimeter() { return 2 * (width + height); }\n}'
-          },
-          {
-            q: 'What are the strengths and weaknesses of declarative vs imperative paradigms?',
-            a: 'Declarative Paradigm:\n• Strengths: Conciseness, high readability, easier parallelization, absence of state mutation bugs.\n• Weaknesses: Steeper learning curve, internal performance optimization is out of developer\'s direct control.\n\nImperative Paradigm:\n• Strengths: Intuitive mapping to physical Von Neumann CPU architecture, fine-grained control over memory and cache.\n• Weaknesses: Prone to concurrency race conditions, harder to test due to side effects.'
-          }
-        ]
-      }
-    },
-    106: {
-      1: {
-        topic: 'Session 6: Imperative Paradigm – Procedural',
-        slo: 'SLO 1: Procedural Concepts',
-        qa: [
-          {
-            q: 'Write a Java function to calculate factorial procedurally.',
-            a: 'public class ProceduralFactorial {\n    public static long calculateFactorial(int n) {\n        long result = 1;\n        for (int i = 2; i <= n; i++) {\n            result *= i;\n        }\n        return result;\n    }\n    public static void main(String[] args) {\n        System.out.println("Factorial of 5: " + calculateFactorial(5));\n    }\n}'
-          },
-          {
-            q: 'Differentiate between procedure and method in Java.',
-            a: '1. Procedure: A set of procedural instructions designed to perform a specific task without being inherently bound to object state (represented in Java as static methods).\n2. Method: A function associated with a specific class or object instance that has direct access to instance fields (this reference) and participates in polymorphism.'
-          },
-          {
-            q: 'Identify drawbacks of procedural programming using a long Java function.',
-            a: 'Drawbacks of Procedural Code:\n1. Tight Coupling & Spaghetti Code: Logic flows through long linear blocks.\n2. Lack of Information Hiding: Data is often global or widely shared.\n3. Difficult Maintenance: Changing a single data structure requires altering all dependent functions.'
-          }
-        ]
-      },
-      2: {
-        topic: 'Session 6: Imperative Paradigm – Procedural',
-        slo: 'SLO 2: Modular Programming',
-        qa: [
-          {
-            q: 'Break a program into multiple reusable methods in Java.',
-            a: 'public class ModularCalculator {\n    public static double add(double a, double b) { return a + b; }\n    public static double subtract(double a, double b) { return a - b; }\n    public static double multiply(double a, double b) { return a * b; }\n    public static double divide(double a, double b) {\n        if (b == 0) throw new ArithmeticException("Division by zero");\n        return a / b;\n    }\n}'
-          },
-          {
-            q: 'Write a Java program that uses a main method and two helper methods.',
-            a: 'public class HelperMethodsDemo {\n    public static int square(int n) { return n * n; }\n    public static int cube(int n) { return n * square(n); }\n    public static void main(String[] args) {\n        System.out.println("Square of 4: " + square(4));\n        System.out.println("Cube of 4: " + cube(4));\n    }\n}'
-          },
-          {
-            q: 'Explain how Java supports code reuse via static methods.',
-            a: 'Java provides utility classes (e.g. java.lang.Math, java.util.Collections) containing static methods. These can be invoked directly using ClassName.methodName() without instantiating objects, providing modular and efficient code reuse.'
-          }
-        ]
-      }
-    },
-    107: {
-      1: {
-        topic: 'Session 7: Imperative Paradigm – Object-Oriented',
-        slo: 'SLO 1: OOP Principles',
-        qa: [
-          {
-            q: 'Write a class demonstrating encapsulation and inheritance.',
-            a: 'class Person {\n    private String name; // Encapsulation\n    public Person(String name) { this.name = name; }\n    public String getName() { return name; }\n}\nclass Student extends Person { // Inheritance\n    private String regNo;\n    public Student(String name, String regNo) { super(name); this.regNo = regNo; }\n    public void display() { System.out.println(getName() + " [" + regNo + "]"); }\n}'
-          },
-          {
-            q: 'Implement abstraction using an abstract class.',
-            a: 'abstract class Shape {\n    abstract double getArea();\n    public void printInfo() { System.out.println("Area: " + getArea()); }\n}\nclass Circle extends Shape {\n    private double r;\n    public Circle(double r) { this.r = r; }\n    @Override double getArea() { return Math.PI * r * r; }\n}'
-          },
-          {
-            q: 'Show polymorphism with method overriding in Java.',
-            a: 'class Animal { void makeSound() { System.out.println("Some sound"); } }\nclass Cat extends Animal { @Override void makeSound() { System.out.println("Meow"); } }\nclass Dog extends Animal { @Override void makeSound() { System.out.println("Woof"); } }\n// Polymorphic call: Animal a = new Cat(); a.makeSound(); prints "Meow".'
-          }
-        ]
-      },
-      2: {
-        topic: 'Session 7: Imperative Paradigm – Object-Oriented',
-        slo: 'SLO 2: Class Design & Inheritance',
-        qa: [
-          {
-            q: 'Design a class hierarchy: Vehicle -> Car -> ElectricCar.',
-            a: 'class Vehicle { int wheels; Vehicle(int w) { this.wheels = w; } }\nclass Car extends Vehicle { int doors; Car(int w, int d) { super(w); this.doors = d; } }\nclass ElectricCar extends Car {\n    int batteryKwh;\n    ElectricCar(int w, int d, int b) { super(w, d); this.batteryKwh = b; }\n}'
-          },
-          {
-            q: 'Create a superclass Employee and subclass Manager.',
-            a: 'class Employee {\n    String name; double salary;\n    Employee(String n, double s) { this.name = n; this.salary = s; }\n    void work() { System.out.println(name + " is working"); }\n}\nclass Manager extends Employee {\n    String department;\n    Manager(String n, double s, String d) { super(n, s); this.department = d; }\n    void conductMeeting() { System.out.println(name + " is managing " + department); }\n}'
-          },
-          {
-            q: 'Override a method in Java and explain the use of super.',
-            a: 'The "super" keyword is used to refer directly to the immediate parent class object. It allows invoking parent constructors (super()) and accessing overridden parent methods (super.methodName()).'
+            q: 'Differentiate between Happiness (Sukh) and Physical Facilities (Suvidha). What is their correct priority?',
+            a: 'Human aspirations consist of two distinct dimensions:\n1. Happiness (Sukh): A state of harmony, peace, and synergy within the Self. The need for Sukh is continuous and qualitative (e.g., respect, trust, affection, peace of mind).\n2. Physical Facilities (Suvidha): Material requirements for nurturing, protection, and right utilization of the body. The need for Suvidha is quantitative and limited in time (e.g., food, clothing, shelter).\n\nCorrect Priority Order:\n1st: Right Understanding in the Self (knowing harmony at all levels)\n2nd: Relationship with human beings (mutual happiness)\n3rd: Physical Facilities with nature (mutual prosperity).\nReversing this priority leads to greed, deprivation, and social friction.'
           }
         ]
       }
     },
     108: {
       1: {
-        topic: 'Session 8: Imperative Paradigm – Parallel Processing',
-        slo: 'SLO 1: Understand Concurrency',
+        topic: 'Natural Acceptance vs Liking & Observation of Feelings',
+        slo: 'SLO 1: Differentiating Natural Acceptance from Conditioned Appeal',
         qa: [
           {
-            q: 'What is a thread in Java? How does it differ from a process?',
-            a: 'A thread is a lightweight execution sub-unit within a process.\n• Process: Has its own independent address space and allocated memory. Heavyweight context switching.\n• Thread: Multiple threads exist within a single process, sharing heap memory and code segment while maintaining individual program counters and stack frames.'
+            q: 'Distinguish between Natural Acceptance and Liking (Appeal).',
+            a: 'Natural acceptance is what I accept innately; it is innate, invariant with time and place (universal), uncorrupted by pre-conditioning, and definite. Liking or appeal, by contrast, can vary from person to person and concerns the details of how a relationship is fulfilled. For example, whether a person likes to wake up early or late varies, but both naturally accept to be healthy; whether one likes playing with toys or travelling varies, but both naturally accept to be happy. Natural acceptance is about my relationship to the reality of concern and my purpose or role (e.g. natural acceptance for nurturing the body), which is definite; the details of how to fulfil it may have variety.'
           },
           {
-            q: 'Identify concurrency issues in shared memory.',
-            a: 'Key Concurrency Issues:\n1. Race Condition: Two threads concurrently modify shared mutable data.\n2. Deadlock: Two threads wait indefinitely for locks held by each other.\n3. Starvation: A thread is perpetually denied CPU access.'
+            q: 'Explain the Namaste example in the context of checking feelings vs outer expressions.',
+            a: 'The same expression — folding hands in Namaste — can carry a feeling of relationship and respect, which is naturally acceptable, leads to harmony and brings happiness within; or it can carry a feeling of opposition and disrespect, which is not naturally acceptable and brings disharmony and unhappiness within. The expression itself has creativity and variation and cannot be checked by natural acceptance; only the underlying feeling can be checked — and the feeling is definite if based on natural acceptance, indefinite if based on assumption. So we check the feeling, not the outer expression.'
           },
           {
-            q: 'Define thread lifecycle in Java with example.',
-            a: 'Thread States:\n1. New -> 2. Runnable -> 3. Blocked/Waiting/Timed_Waiting -> 4. Terminated.\nExample: Thread t = new Thread(() -> System.out.println("Running")); t.start(); moves thread to Runnable.'
+            q: 'Differentiate between Natural Acceptance, Acceptance, and Forced Acceptance.',
+            a: 'Natural acceptance is innate, invariant and universal — what I accept by my very being. Acceptance is what I assume to hold good in a given situation. Forced acceptance is what I do not accept but, in a given situation, am forced to compromise with or abide by. Social norms and family traditions are essentially details worked out at some time and situation about how to fulfil a goal set by the society; therefore we need to verify, from time to time, whether the goals set are correct (through natural acceptance) and whether the norms still meet those goals in the present situation.'
           }
         ]
       },
       2: {
-        topic: 'Session 8: Imperative Paradigm – Parallel Processing',
-        slo: 'SLO 2: Implement Threading',
+        topic: 'Application of Natural Acceptance in Decision Making',
+        slo: 'SLO 2: Experiential Verification of Feelings',
         qa: [
           {
-            q: 'Write a Java program to print "Hello" using a thread.',
-            a: 'public class ThreadDemo {\n    public static void main(String[] args) {\n        Thread t = new Thread(() -> System.out.println("Hello from Thread: " + Thread.currentThread().getName()));\n        t.start();\n    }\n}'
-          },
-          {
-            q: 'Create two threads to print even and odd numbers separately.',
-            a: 'public class EvenOddThreads {\n    public static void main(String[] args) {\n        Thread odd = new Thread(() -> { for (int i = 1; i <= 9; i += 2) System.out.println("Odd: " + i); });\n        Thread even = new Thread(() -> { for (int i = 2; i <= 10; i += 2) System.out.println("Even: " + i); });\n        odd.start(); even.start();\n    }\n}'
-          },
-          {
-            q: 'Demonstrate thread sleep and join in Java.',
-            a: 'public class SleepJoinDemo {\n    public static void main(String[] args) throws InterruptedException {\n        Thread worker = new Thread(() -> {\n            try { Thread.sleep(500); System.out.println("Worker done"); } catch (Exception e) {}\n        });\n        worker.start();\n        worker.join(); // Main waits until worker finishes\n        System.out.println("Main continues after worker");\n    }\n}'
+            q: 'Analyze how verifying desires through Natural Acceptance resolves inner contradictions and leads to ethical human conduct.',
+            a: 'Contradiction within oneself arises when our desires, thoughts, and expectations are motivated by pre-conditioning (unexamined societal beliefs) or sensation (seeking temporary pleasure), rather than natural acceptance. When a proposal is examined through natural acceptance:\n1. It brings clarity about intention vs competence.\n2. It harmonizes the desires of the Self with universal human values.\n3. It eliminates internal dilemma, anxiety, and self-doubt, leading to definite human conduct characterized by mutual fulfillment in relationship and conservation in nature.'
           }
         ]
       }
     },
-    109: {
+    208: {
       1: {
-        topic: 'Session 9: Declarative Paradigm – Functional',
-        slo: 'SLO 1: Functional Programming Concepts',
+        topic: 'The Role of Human Beings in Existence',
+        slo: 'SLO 1: Human Conduct and Universal Order',
         qa: [
           {
-            q: 'Create a pure function in Java using Function<T,R>.',
-            a: 'import java.util.function.Function;\n// Pure function: deterministic output, zero side effects\nFunction<Integer, Integer> square = x -> x * x;\nSystem.out.println("Square of 6: " + square.apply(6));'
+            q: 'What is the ultimate role of a human being in existence?',
+            a: 'The ultimate role of a human being in existence is to live in harmony at all four levels of living: within oneself, with family and society, with the rest of nature, and in existence as a whole. Human beings participate constructively by developing right understanding, contributing positively to mutual enrichment, and protecting the ecological and social balance.'
           },
           {
-            q: 'What is a higher-order function? Give a Java example.',
-            a: 'A higher-order function is a function that takes one or more functions as parameters or returns a function.\nExample: List.stream().map(String::toUpperCase); map takes a Function as an argument.'
-          },
-          {
-            q: 'Show immutability using final variables in Java.',
-            a: 'public final class ImmutablePoint {\n    private final int x, y;\n    public ImmutablePoint(int x, int y) { this.x = x; this.y = y; }\n    public int getX() { return x; }\n    public int getY() { return y; }\n}'
+            q: 'How does human conduct affect society?',
+            a: 'Good conduct promotes trust, cooperation, mutual respect, and social cohesion, while wrong conduct driven by greed, ego, or sensory indulgence leads to conflict, corruption, and exploitation of people and resources.'
           }
         ]
       },
       2: {
-        topic: 'Session 9: Declarative Paradigm – Functional',
-        slo: 'SLO 2: Lambda and Stream API',
+        topic: 'Prosperity in the Light of Harmony between Self and Body',
+        slo: 'SLO 2: Self-Regulation (Sanyam) and Health (Svasthya)',
         qa: [
           {
-            q: 'Use Stream API to filter and print elements from a list.',
-            a: 'List<String> names = Arrays.asList("Alice", "Bob", "Alex", "David");\nnames.stream().filter(s -> s.startsWith("A")).forEach(System.out::println);'
-          },
-          {
-            q: 'Write a lambda expression to compare two integers.',
-            a: 'Comparator<Integer> comp = (a, b) -> a.compareTo(b);'
-          },
-          {
-            q: 'Chain map, filter, and collect operations in a Java program.',
-            a: 'List<Integer> nums = Arrays.asList(1, 2, 3, 4, 5, 6);\nList<Integer> result = nums.stream()\n    .filter(n -> n % 2 == 0)\n    .map(n -> n * n)\n    .collect(Collectors.toList());'
+            q: 'Explain prosperity in the light of harmony between Self and Body.',
+            a: 'Self-regulation (Sanyam) means the feeling of responsibility toward the Body for its nurturing, protection and right utilisation. Health (Svasthya) means the Body acts according to the Self and all parts of the Body function in complete synergy. The programme to ensure self-regulation and health gives priority to four areas: intake and routine, labour and exercise, posture and regulated breathing, and medicine and treatment. Intake includes wholesome air, water, sunlight, and food. Routine includes proper rising time, sleeping time and eating rhythm. Labour produces physical facility, while exercise maintains physical fitness. This programme helps the Self take natural responsibility for the Body without fear or suppression.'
           }
         ]
       }
     },
-    110: {
+    302: {
       1: {
-        topic: 'Session 10: Declarative Paradigm – Logic & DB',
-        slo: 'SLO 1: Logic Programming Simulation',
+        topic: 'Comprehensive Understanding of the Human Being',
+        slo: 'SLO 1: Self as the Conscious Entity and Body as the Material Instrument',
         qa: [
           {
-            q: 'Simulate an expert system rule (age > 18) in Java if-else.',
-            a: 'public class RuleEngine {\n    public static String evaluateVoter(int age) {\n        return (age >= 18) ? "Eligible to Vote" : "Ineligible";\n    }\n}'
+            q: 'How does comprehensive self-understanding influence decision-making?',
+            a: 'It enables clarity of purpose, responsible choices, and ethical actions, thereby reducing conflicts and contradictions in life.'
           },
           {
-            q: 'Convert decision rules into Java conditions.',
-            a: 'Decision rules using pattern matching and boolean predicates allow rule engines to evaluate complex state matrices.'
-          },
-          {
-            q: 'Design a Java quiz app that uses rule-based logic.',
-            a: 'A rule-based quiz scores users by evaluating answer predicates against stored fact rules.'
+            q: 'What is the core theme of this course on Human Values?',
+            a: 'The core theme is to explore and develop the right understanding of the human being, which helps in achieving harmony at all levels of existence.'
           }
         ]
       },
       2: {
-        topic: 'Session 10: Declarative Paradigm – Logic & DB',
-        slo: 'SLO 2: Database Processing',
+        topic: 'Trust as the Foundational Value in Relationships',
+        slo: 'SLO 2: Foundational Values for Mutual Happiness',
         qa: [
           {
-            q: 'Write Java code to connect to MySQL using JDBC.',
-            a: 'String url = "jdbc:mysql://localhost:3306/srm_db";\nConnection conn = DriverManager.getConnection(url, "user", "pass");'
+            q: 'Explain trust as the foundational value in relationship.',
+            a: 'Trust means the assurance that the other person wants to make me happy and prosperous. In relationship, trust is foundational because without trust, other feelings like respect, affection, care and guidance cannot be properly established. In UHV, trust is explored by distinguishing between intention and competence. At the level of natural acceptance, every human being wants to make oneself happy and also wants to make the other happy. The problem usually lies in competence, not in intention. However, when the other makes a mistake, we often doubt the other’s intention and create opposition, irritation or anger. But when we make a mistake, we usually see it as lack of competence. Right understanding helps us see that the intention of the other is also naturally acceptable, while competence may need improvement. This assurance about intention is trust, and it leads to mutual happiness in relationship.'
+          }
+        ]
+      }
+    },
+    308: {
+      1: {
+        topic: 'Harmony and Contradiction within the Self',
+        slo: 'SLO 1: Alignment of Desires, Thoughts, and Expectations',
+        qa: [
+          {
+            q: 'What causes contradiction in the self?',
+            a: 'Contradiction arises when there is a mismatch between our desires, thoughts, and selections—often due to lack of clarity or wrong understanding—resulting in stress, confusion, or conflict.'
           },
           {
-            q: 'Execute an INSERT and SELECT statement using JDBC.',
-            a: 'Statement stmt = conn.createStatement();\nstmt.executeUpdate("INSERT INTO students VALUES (1, \'Sai\')");\nResultSet rs = stmt.executeQuery("SELECT * FROM students");'
+            q: 'What is meant by harmony in the self?',
+            a: 'Harmony in the self occurs when our desires, thoughts, and selections are based on right understanding, leading to inner peace and satisfaction.'
+          }
+        ]
+      },
+      2: {
+        topic: 'The Human Role in Mutual Enrichment and Nature Harmony',
+        slo: 'SLO 2: Harmony in Nature and Existence',
+        qa: [
+          {
+            q: 'Explain the human role in mutual enrichment or harmony in nature.',
+            a: 'The human role in nature is to live in a way that preserves, protects and enriches the rest of nature while ensuring prosperity for human beings. Human beings need physical facilities from nature, but these must be used with right understanding and right utilisation. Problems like water insecurity, food insecurity, climate change, pollution and resource depletion show that human beings have often acted with greed, accumulation and exploitation. The solution is not merely more technology, but a holistic approach based on right understanding. Human beings can participate in harmony by reducing waste, protecting water sources, preserving forests, supporting sustainable agriculture, using renewable resources, planting trees, restoring wetlands and living with responsibility. Thus, mutual enrichment means that human prosperity should not be at the cost of nature; it should be in continuity with the preservation of nature.'
+          }
+        ]
+      }
+    },
+
+    // ─── MODULE 3: Harmony in Family/Society/Nature (Sessions 301-309) ───
+    // Session 301 = Lecture 13: Harmony in the Family — Basic Unit
+    301: {
+      1: {
+        topic: 'Lecture 13: Harmony in the Family — the Basic Unit of Human Interaction',
+        slo: 'SLO 1: The Nine Feelings in Relationship and the Foundation of Family',
+        qa: [
+          {
+            q: 'PART B — ACTIVITY 1: The Nine Feelings in Order\nList the nine feelings in relationship in order. Mark the foundation value and the complete value.',
+            a: '1. Trust (Vishwas)        — FOUNDATION VALUE\n2. Respect (Samman)\n3. Affection (Sneha)\n4. Care (Mamata)\n5. Guidance (Vatsalya)\n6. Reverence (Shraddha)\n7. Glory (Gaurav)\n8. Gratitude (Kritagyata)\n9. Love (Prem)              — COMPLETE VALUE\n\nFoundation value = Trust (Vishwas)\nComplete value   = Love (Prem)'
           },
           {
-            q: 'Explain the purpose of prepared statements in Java.',
-            a: 'PreparedStatement pre-compiles SQL queries, parameterizing inputs to prevent SQL Injection attacks and improve performance via execution plan caching.'
+            q: 'PART B — ACTIVITY 2: Which Feeling is Naturally Acceptable?\nFor each pair, identify the naturally acceptable feeling.',
+            a: 'Naturally Acceptable Feelings (verified on the basis of natural acceptance):\n\n  Trust         ✓  (NOT Mistrust / opposition)\n  Respect       ✓  (NOT Disrespect)\n  Affection     ✓  (NOT Jealousy)\n  Care          ✓  (NOT Exploitation)\n  Guidance      ✓  (NOT Misguidance / confusion)\n  Reverence     ✓  (NOT Irreverence)\n  Glory         ✓  (NOT Inglorious feelings)\n  Gratitude     ✓  (NOT Ingratitude)\n  Love          ✓  (NOT Hatred)\n\nObservation: Each positive feeling in the left column is universally, naturally acceptable — meaning everyone, regardless of age, culture or background, recognises and accepts these feelings as fulfilling. Their opposites create disharmony and unhappiness within the Self.'
+          },
+          {
+            q: 'PART B — ACTIVITY 3: Feelings or Physical Facility?\nFor fulfilling relationship in the family, what do you think of — physical facility (gifts, good food) or feelings (expressing trust, respect...)? Write your honest observation.',
+            a: 'What I usually think of for fulfilling relationship:\nIn practice, I often default to physical expressions — giving gifts, buying food, celebrating occasions — as a way of showing care and fulfilling relationships within the family.\n\nWhat the course says is fundamental:\nThe course clarifies that the real foundation of family relationships is the nine feelings, not physical facility. Gifts and material things are meant for the Body, not the Self. The Self needs feelings — primarily trust, respect, affection, and care — for a relationship to feel genuinely fulfilled. Physical facility cannot substitute for the absence of feelings; offering a gift while harbouring resentment or mistrust does not restore harmony. The proper sequence is: Understand the feeling → Have the feeling within → Express it → Right evaluation by both → Mutual happiness.'
+          },
+          {
+            q: 'Q1. Why is the family called the basic unit of human organisation, and what is the major issue in the family?  [5]',
+            a: 'The family is called the basic unit of human organisation because it is the smallest, most fundamental group within which human beings relate to one another. Just as a cell is the basic unit of a living body, the family is the structural building block of society: every larger unit — neighbourhood, community, nation — is composed of families.\n\nThe major issue in the family is the fulfilment of relationship. It is not a lack of material resources but a lack of understanding and fulfilment of the feelings in relationship that causes problems within the family. Misunderstandings, conflicts, divorce, emotional neglect, and lack of trust all arise because we fail to identify, ensure, and express the nine feelings that constitute relationship. As long as we relate to each other only at the level of the Body (through transactions, physical proximity, or economic dependency), the deeper need of the Self for feelings like trust, respect, and affection goes unmet, leading to continuous dissatisfaction.'
+          },
+          {
+            q: 'Q2. Explain the four aspects of relationship discussed in the lecture.  [5]',
+            a: 'The four aspects of relationship are:\n\n1. Relationship is between one Self (I1) and another Self (I2):\nThe relationship itself exists between the two conscious entities — the two Selves. It is not between two bodies. The Body is used as an instrument to express the feelings in the relationship, as and when required; but the relationship is held in the Self, not the Body.\n\n2. There are feelings in relationship:\nEvery relationship involves feelings in one Self towards the other. These feelings — trust, respect, affection, care, guidance, reverence, glory, gratitude, love — reside in the Self. It is the presence or absence of these feelings that determines the quality of the relationship.\n\n3. The feelings are definite (the nine feelings):\nRelationship does not consist of vague, indefinite emotional states. There are exactly nine recognisable, definite feelings. This means we can identify which feelings are present, which are absent, and what needs to be cultivated.\n\n4. Their fulfilment and mutual evaluation lead to mutual happiness:\nWhen both persons fulfil their respective feelings and evaluate each other rightly — recognising the other as a co-equal Self with similar needs — the result is mutual happiness. Without this, both are left expecting feelings from the other instead of ensuring them within themselves, which leads to conflict.'
+          }
+        ]
+      },
+      2: {
+        topic: 'Lecture 13: Harmony in the Family — Physical Facility vs Feelings',
+        slo: 'SLO 2: Why Feelings Cannot Be Replaced by Physical Facility',
+        qa: [
+          {
+            q: 'Q3. List the nine feelings in relationship in order, identifying the foundation value and the complete value.  [5]',
+            a: 'The nine feelings in relationship, in order, are:\n\n  1. Trust (Vishwas)          — Foundation Value\n  2. Respect (Samman)\n  3. Affection (Sneha)\n  4. Care (Mamata)\n  5. Guidance (Vatsalya)\n  6. Reverence (Shraddha)\n  7. Glory (Gaurav)\n  8. Gratitude (Kritagyata)\n  9. Love (Prem)               — Complete Value\n\nFoundation Value — Trust:\nTrust is the foundation value because it is the basis on which all other feelings stand. Without trust, respect, affection, and care cannot be properly felt or expressed. Trust means the assurance that the other Self naturally wants to make me happy and prosperous — not doubting another\'s intentions.\n\nComplete Value — Love:\nLove is the complete value because it encompasses and integrates all other eight feelings. When one truly loves another Self in the complete sense, all nine feelings are simultaneously present and expressed.'
+          },
+          {
+            q: 'Q4. Why can physical facility not compensate for a lack of feelings in relationship?  [5]',
+            a: 'Physical facility (Suvidha) is the material means by which the Body is nurtured, protected, and utilised — food, clothing, shelter, gifts, comforts. These are necessary for the Body, but the relationship itself is not between two Bodies; it is between two Selves.\n\nThe needs of the Self are qualitatively different from the needs of the Body:\n• The Self needs feelings — trust, respect, affection, care — in order to feel genuinely fulfilled and happy in a relationship.\n• The Body needs physical facility for its sustenance and health.\n\nWhy physical facility cannot substitute for feelings:\n1. Even if we provide every physical comfort, the absence of trust or respect leaves the relationship hollow and unsatisfying — the Self remains unhappy.\n2. Giving gifts while harbouring resentment or mistrust does not create harmony; the other Self can sense the absence of genuine feeling.\n3. A child who receives every material comfort but no genuine affection or guidance grows up with psychological wounds that no amount of wealth can heal.\n4. The richest families in the world experience relationship breakdowns because physical abundance cannot fill the void created by the absence of right feelings.\n\nConclusion: Physical facility is required for the Body; the nine feelings are required for the Self. Confusing the two — trying to fulfil the Self\'s need through physical means — is a fundamental error in understanding the human being.'
+          },
+          {
+            q: 'Q5. Reflect on your notion of relationship — is it based on the Self or on the Body? Do you think of ensuring these feelings in yourself and expressing them, or of getting them from the other?  [5]',
+            a: 'Upon honest self-reflection, I observe that my notion of relationship has largely been Body-centric. I have often thought of relationship in terms of shared physical activities — eating together, exchanging gifts, spending time in physical proximity — rather than examining whether the fundamental feelings like trust, respect, and affection are genuinely present within me for the other.\n\nI also notice that, in most situations, I am oriented toward getting feelings from the other — waiting for others to show me respect, expecting trust from them, hoping for affection — rather than first ensuring these feelings within my own Self and then expressing them. This is what the lecture describes as the "empty bowl" problem: both persons expecting feelings from the other while neither is generating them, so both remain unfulfilled.\n\nThe course\'s insight invites a shift in orientation: take responsibility for the feelings within my own Self, ensure they are right, and then express them. Right evaluation of the other — recognising that the other Self also naturally accepts the same nine feelings and has the same aspiration for happiness — enables genuine mutual fulfilment.\n\nSelf-reflection questions (from Slide 24):\n• Scope of relationship: I tend to limit relationship to close family. Expanding the sense of relationship — recognising the same Self in all human beings — is the direction of growth proposed by UHV.\n• Ensuring vs getting: Honest reflection shows I am mostly in the mode of getting. The course proposes shifting to ensuring feelings within myself first.'
+          }
+        ]
+      }
+    },
+
+    // Session 302 = Lecture 14: Feelings, Evaluations, and Trust
+    302: {
+      1: {
+        topic: 'Comprehensive Understanding of the Human Being',
+        slo: 'SLO 1: Self as the Conscious Entity and Body as the Material Instrument',
+        qa: [
+          {
+            q: 'How does comprehensive self-understanding influence decision-making?',
+            a: 'It enables clarity of purpose, responsible choices, and ethical actions, thereby reducing conflicts and contradictions in life.'
+          },
+          {
+            q: 'What is the core theme of this course on Human Values?',
+            a: 'The core theme is to explore and develop the right understanding of the human being, which helps in achieving harmony at all levels of existence.'
+          }
+        ]
+      },
+      2: {
+        topic: 'Trust as the Foundational Value in Relationships',
+        slo: 'SLO 2: Foundational Values for Mutual Happiness',
+        qa: [
+          {
+            q: 'Explain trust as the foundational value in relationship.',
+            a: 'Trust means the assurance that the other person wants to make me happy and prosperous. In relationship, trust is foundational because without trust, other feelings like respect, affection, care and guidance cannot be properly established. In UHV, trust is explored by distinguishing between intention and competence. At the level of natural acceptance, every human being wants to make oneself happy and also wants to make the other happy. The problem usually lies in competence, not in intention. Right understanding helps us see that the intention of the other is also naturally acceptable, while competence may need improvement. This assurance about intention is trust, and it leads to mutual happiness in relationship.'
+          }
+        ]
+      }
+    },
+
+    308: {
+      1: {
+        topic: 'Harmony and Contradiction within the Self',
+        slo: 'SLO 1: Alignment of Desires, Thoughts, and Expectations',
+        qa: [
+          {
+            q: 'What causes contradiction in the self?',
+            a: 'Contradiction arises when there is a mismatch between our desires, thoughts, and selections—often due to lack of clarity or wrong understanding—resulting in stress, confusion, or conflict.'
+          },
+          {
+            q: 'What is meant by harmony in the self?',
+            a: 'Harmony in the self occurs when our desires, thoughts, and selections are based on right understanding, leading to inner peace and satisfaction.'
+          }
+        ]
+      },
+      2: {
+        topic: 'The Human Role in Mutual Enrichment and Nature Harmony',
+        slo: 'SLO 2: Harmony in Nature and Existence',
+        qa: [
+          {
+            q: 'Explain the human role in mutual enrichment or harmony in nature.',
+            a: 'The human role in nature is to live in a way that preserves, protects and enriches the rest of nature while ensuring prosperity for human beings. Human beings need physical facilities from nature, but these must be used with right understanding and right utilisation. Problems like water insecurity, food insecurity, climate change, pollution and resource depletion show that human beings have often acted with greed, accumulation and exploitation. The solution is a holistic approach based on right understanding. Human beings can participate in harmony by reducing waste, protecting water sources, preserving forests, supporting sustainable agriculture, using renewable resources, and living with responsibility.'
           }
         ]
       }
     }
   },
+
+  // ─────────────────────────────────────────────────────────────────
+  // 21CSC202J: OPERATING SYSTEMS
+  // ─────────────────────────────────────────────────────────────────
+  '21CSC202J': {
+    101: {
+      1: {
+        topic: 'Overview of Operating Systems and System Calls',
+        slo: 'SLO 1: OS Architecture and Dual-Mode Operation',
+        qa: [
+          {
+            q: 'Explain the role of the operating system as an extended machine and resource manager.',
+            a: 'The operating system functions in two vital capacities:\n1. Extended Machine (Software Abstraction): It abstracts the low-level hardware complexity (CPU registers, disk controllers, memory buses) and presents programmers with clean, standardized abstractions such as files, sockets, and processes.\n2. Resource Manager: It orchestrates the allocation and sharing of finite physical resources (CPU cores, RAM, I/O devices) among multiple concurrent programs in an equitable, secure, and performant manner.'
+          },
+          {
+            q: 'Differentiate between User Mode and Kernel Mode. How does a System Call transition between them?',
+            a: 'Modern CPUs implement hardware protection rings:\n• User Mode (Ring 3): Application programs run with restricted privileges, preventing direct access to physical memory addresses and privileged hardware I/O instructions.\n• Kernel Mode (Ring 0): The OS kernel executes with unrestricted access to the complete instruction set and physical hardware.\n\nTransition via System Call:\nWhen a user process requires kernel services (e.g., read, fork, write), it loads system call parameters into registers and triggers a software interrupt (trap) or sysenter instruction. The hardware switches the CPU mode bit to Kernel Mode, saves the program counter and register context onto the kernel stack, and jumps to the kernel system call dispatch table. Once finished, the iret/sysexit instruction restores the user context and switches back to User Mode.'
+          }
+        ]
+      },
+      2: {
+        topic: 'Operating System Structures and Virtualization',
+        slo: 'SLO 2: Monolithic vs Microkernel Architectures',
+        qa: [
+          {
+            q: 'Compare Monolithic and Microkernel architectures with respect to performance, security, and extensibility.',
+            a: '1. Monolithic Kernel (e.g., Linux, classic Unix):\n• Structure: All primary services (process scheduling, virtual memory, file systems, IPC, device drivers) reside inside the shared kernel space.\n• Performance: Extremely fast execution because internal service calls occur as direct function calls without context switching overhead.\n• Security/Fault Isolation: Vulnerable; a crash or exploit in any third-party device driver can compromise the entire kernel.\n\n2. Microkernel (e.g., Mach, QNX, seL4):\n• Structure: Only minimal essential mechanisms (IPC, basic address space management, thread scheduling) stay in the kernel; file systems and drivers run as user-space server daemons.\n• Security/Fault Isolation: Exceptional resilience; if a driver crashes, it can be restarted without affecting the operating system.\n• Performance: Incurs significant overhead due to frequent user-kernel-user context switches and message passing (IPC).'
+          }
+        ]
+      }
+    },
+    108: {
+      1: {
+        topic: 'Memory Management and Paging Systems',
+        slo: 'SLO 1: Paging Architecture and Address Translation',
+        qa: [
+          {
+            q: 'Explain the mechanism of Paging and how logical addresses are translated into physical addresses.',
+            a: 'Paging is a memory management scheme that eliminates external fragmentation by allowing a process\'s physical address space to be non-contiguous.\n\nAddress Translation Mechanism:\n1. The CPU generates a Logical Address divided into: Page Number (p) and Page Offset (d).\n2. The Page Table Base Register (PTBR) locates the process\'s Page Table in physical RAM.\n3. The Page Number (p) is used as an index into the page table to retrieve the corresponding Frame Number (f).\n4. The Physical Address is constructed by concatenating the Frame Number (f) with the Offset (d).\n5. Hardware checks ensure the offset does not exceed the page size and validates permission bits (read/write/execute).'
+          },
+          {
+            q: 'What is a Translation Lookaside Buffer (TLB) and how does it calculate the Effective Memory Access Time (EMAT)?',
+            a: 'A TLB is a fast associative hardware cache situated inside the Memory Management Unit (MMU) that stores recent page-to-frame translations.\n\nEffective Memory Access Time (EMAT) Formula:\nEMAT = [Hit Ratio * (TLB Search Time + Memory Access Time)] + [(1 - Hit Ratio) * (TLB Search Time + 2 * Memory Access Time)]\n\nExplanation:\n• On a TLB Hit: Translation is instant; only 1 RAM access is required to fetch the data.\n• On a TLB Miss: The MMU must first access memory to look up the Page Table, then access memory a 2nd time to retrieve the target data word.'
+          }
+        ]
+      },
+      2: {
+        topic: 'Virtual Memory and Page Replacement Algorithms',
+        slo: 'SLO 2: Demand Paging and Page Fault Handling',
+        qa: [
+          {
+            q: 'Describe the sequence of steps that occur when a Page Fault is serviced by the operating system.',
+            a: 'Step-by-Step Page Fault Handling:\n1. The CPU references a memory address whose page table entry has the valid/invalid bit set to "invalid" (page not in RAM).\n2. The MMU raises an internal hardware trap to the OS kernel (Page Fault Interrupt).\n3. The kernel saves the current process context and inspects the internal PCB tables to verify if the memory reference was valid.\n4. If invalid, the process is terminated (Segmentation Fault). If valid, the kernel locates the missing page in backing storage (swap partition/disk).\n5. The OS finds a free physical frame. If no frames are free, it runs a page replacement algorithm (e.g., LRU) to evict a victim page, writing it to disk if dirty.\n6. The OS schedules a disk I/O operation to read the desired page into the allocated physical frame.\n7. When the I/O completes, the page table entry is updated with the new frame number and the valid bit is set to "valid".\n8. The CPU instruction that triggered the page fault is restarted seamlessly.'
+          }
+        ]
+      }
+    }
+  },
+
+  // ─────────────────────────────────────────────────────────────────
+  // 21CSC201J: DATA STRUCTURES AND ALGORITHMS
+  // ─────────────────────────────────────────────────────────────────
   '21CSC201J': {
     101: {
       1: {
         topic: 'Introduction to Programming in C',
-        slo: 'SLO 1: Crossword Puzzle',
+        slo: 'SLO 1: Crossword Puzzle & C Syntax',
         qa: [
           {
             q: 'Complete Crossword Puzzle — Verified Solutions',
@@ -458,12 +414,323 @@ const SRM_WORKSHEETS_DB = {
         ]
       }
     }
+  },
+
+  // ─────────────────────────────────────────────────────────────────
+  // 21CSC203P: ADVANCED PROGRAMMING PRACTICE
+  // ─────────────────────────────────────────────────────────────────
+  '21CSC203P': {
+    101: {
+      1: {
+        topic: 'Introduction to Programming Languages',
+        slo: 'SLO 1: Elements of Programming Languages',
+        qa: [
+          {
+            q: 'What is the syntax and semantics of the following Java statement: int x = 5 + 3;?',
+            a: 'Syntax Analysis:\n• "int" is the reserved primitive type keyword specifying a 32-bit signed two\'s complement integer.\n• "x" is the variable identifier serving as a symbolic reference to a memory location.\n• "=" is the assignment operator transferring the right-hand evaluated value to the variable.\n• "5 + 3" is an additive arithmetic expression consisting of integer literals "5" and "3" joined by "+".\n• ";" is the statement terminator mandated by Java grammar rules.\n\nSemantics Analysis:\n• Expression Evaluation: The runtime evaluates the binary addition (5 + 3) to produce the integer literal 8.\n• Allocation & Storage: A 4-byte memory slot is allocated on the stack frame for variable "x". The binary value 8 (0x00000008) is stored into that location.'
+          },
+          {
+            q: 'Identify lexical tokens in a simple Java program.',
+            a: 'A token is the smallest individual lexical unit recognized by the compiler during lexical analysis.\nIn the sample statement "int count = 10;":\n1. Keyword: "int"\n2. Identifier: "count"\n3. Operator: "="\n4. Literal: "10"\n5. Separator: ";"'
+          }
+        ]
+      },
+      2: {
+        topic: 'Introduction to Programming Languages',
+        slo: 'SLO 2: Language Classification',
+        qa: [
+          {
+            q: 'Classify Java as compiled/interpreted and explain why.',
+            a: 'Java is classified as a Two-Stage Hybrid (Both Compiled and Interpreted) programming language.\n1. Compilation Phase: Source code (.java) is compiled by javac into architecture-neutral Java Bytecode (.class).\n2. Interpretation & JIT Phase: The JVM interprets bytecode at runtime and uses Just-In-Time (JIT) compilation to compile hot spots into native machine instructions.'
+          }
+        ]
+      }
+    },
+    108: {
+      1: {
+        topic: 'Imperative Paradigm – Parallel Processing',
+        slo: 'SLO 1: Understand Concurrency',
+        qa: [
+          {
+            q: 'What is a thread in Java? How does it differ from a process?',
+            a: 'A thread is a lightweight execution sub-unit within a process.\n• Process: Has its own independent address space and allocated memory. Heavyweight context switching.\n• Thread: Multiple threads exist within a single process, sharing heap memory and code segment while maintaining individual program counters and stack frames.'
+          },
+          {
+            q: 'Identify concurrency issues in shared memory.',
+            a: 'Key Concurrency Issues:\n1. Race Condition: Two threads concurrently modify shared mutable data.\n2. Deadlock: Two threads wait indefinitely for locks held by each other.\n3. Starvation: A thread is perpetually denied CPU access.'
+          },
+          {
+            q: 'Define thread lifecycle in Java with example.',
+            a: 'Thread Lifecycle States:\n1. New -> 2. Runnable -> 3. Blocked/Waiting -> 4. Terminated.\nExample:\nThread t = new Thread(() -> System.out.println("Running"));\nt.start();'
+          }
+        ]
+      },
+      2: {
+        topic: 'Imperative Paradigm – Parallel Processing',
+        slo: 'SLO 2: Thread Synchronization',
+        qa: [
+          {
+            q: 'Demonstrate thread synchronization using synchronized methods and blocks.',
+            a: 'Synchronization prevents thread interference and memory consistency errors:\n\nclass Counter {\n    private int count = 0;\n    public synchronized void increment() {\n        count++;\n    }\n    public int getCount() { return count; }\n}'
+          }
+        ]
+      }
+    }
   }
 };
 
+// ═════════════════════════════════════════════════════════════════════
+// STRICT COURSE LOOKUP (ZERO CROSS-SUBJECT FALLBACK)
+// ═════════════════════════════════════════════════════════════════════
+function findKnownSLO(courseCode, sessionNum, sloNum, stateOrTopic) {
+  if (!courseCode) return null;
+  const rawCode = String(courseCode).toUpperCase().trim();
+
+  let canonicalCode = null;
+  for (const k of Object.keys(SRM_WORKSHEETS_DB)) {
+    if (rawCode.includes(k) || k.includes(rawCode)) {
+      canonicalCode = k;
+      break;
+    }
+  }
+
+  // CRITICAL FIX: If the subject is not explicitly defined in the DB, return null!
+  // NEVER fall back to 21CSC203P or any other subject!
+  if (!canonicalCode) return null;
+
+  const course = SRM_WORKSHEETS_DB[canonicalCode];
+  if (!course) return null;
+
+  const numMatch = String(sessionNum || '1').match(/\d+/);
+  const rawNum = numMatch ? parseInt(numMatch[0], 10) : 1;
+  const sloKey = Number(sloNum || 1);
+
+  // Check state or topic context
+  let topicStr = '';
+  let unitNum = null;
+  if (typeof stateOrTopic === 'string') {
+    topicStr = stateOrTopic.toLowerCase();
+  } else if (stateOrTopic && typeof stateOrTopic === 'object') {
+    if (stateOrTopic.currentSession?.uIdx != null) {
+      unitNum = stateOrTopic.currentSession.uIdx + 1;
+    }
+    const sessName = stateOrTopic.currentSession?.sess?.name || '';
+    topicStr = (sessName + ' ' + (stateOrTopic.currentSessionTopic || '')).toLowerCase();
+  }
+
+  // 1. Direct key match (e.g. 301, 101, 108, etc.)
+  if (course[rawNum]?.[sloKey]) return course[rawNum][sloKey];
+  if (course[String(rawNum)]?.[sloKey]) return course[String(rawNum)][sloKey];
+
+  // 2. Keyword-based matching for specific lectures/topics
+  if (canonicalCode === '21LEM202T') {
+    // Lecture 13 / Family / Nine Feelings
+    if (topicStr.includes('family') || topicStr.includes('lecture 13') || topicStr.includes('harmony in the family') || (unitNum === 3 && (rawNum === 1 || rawNum === 13))) {
+      if (course[301]?.[sloKey]) return course[301][sloKey];
+    }
+    // Lecture 14 / Trust / Evaluation
+    if (topicStr.includes('trust') || topicStr.includes('lecture 14') || (unitNum === 3 && (rawNum === 2 || rawNum === 14))) {
+      if (course[302]?.[sloKey]) return course[302][sloKey];
+    }
+    // Lecture 17 / Nature / Existence / Mutual Enrichment
+    if (topicStr.includes('nature') || topicStr.includes('contradiction') || topicStr.includes('lecture 17') || (unitNum === 3 && (rawNum === 8 || rawNum === 17))) {
+      if (course[308]?.[sloKey]) return course[308][sloKey];
+    }
+    // Lecture 1 / Self Exploration
+    if (topicStr.includes('exploration') || topicStr.includes('lecture 1') || (unitNum === 1 && rawNum === 1)) {
+      if (course[101]?.[sloKey]) return course[101][sloKey];
+    }
+    // Lecture 8 / Natural Acceptance
+    if (topicStr.includes('acceptance') || topicStr.includes('lecture 8') || (unitNum === 1 && (rawNum === 8 || rawNum === 2))) {
+      if (course[108]?.[sloKey]) return course[108][sloKey];
+    }
+    // Lecture 10 / Role of Human / Existence
+    if (topicStr.includes('human being') || topicStr.includes('lecture 10') || (unitNum === 2 && (rawNum === 8 || rawNum === 10))) {
+      if (course[208]?.[sloKey]) return course[208][sloKey];
+    }
+  }
+
+  // 3. Unit-aware numbering
+  if (unitNum === 3 && course[300 + rawNum]?.[sloKey]) return course[300 + rawNum][sloKey];
+  if (unitNum === 2 && course[200 + rawNum]?.[sloKey]) return course[200 + rawNum][sloKey];
+  if (unitNum === 1 && course[100 + rawNum]?.[sloKey]) return course[100 + rawNum][sloKey];
+
+  if (rawNum > 100 && course[rawNum]?.[sloKey]) return course[rawNum][sloKey];
+  if (rawNum > 100 && course[rawNum % 100]?.[sloKey]) return course[rawNum % 100][sloKey];
+
+  if (rawNum >= 1 && rawNum <= 10 && course[100 + rawNum]?.[sloKey]) {
+    return course[100 + rawNum][sloKey];
+  }
+  if (rawNum >= 11 && rawNum <= 20 && course[200 + (rawNum - 10)]?.[sloKey]) {
+    return course[200 + (rawNum - 10)][sloKey];
+  }
+  if (rawNum >= 21 && rawNum <= 30 && course[300 + (rawNum - 20)]?.[sloKey]) {
+    return course[300 + (rawNum - 20)][sloKey];
+  }
+
+  for (const k of Object.keys(course)) {
+    const kNum = parseInt(k, 10);
+    if ((kNum === rawNum || (kNum % 100) === (rawNum % 100) || k.endsWith(String(rawNum))) && course[k]?.[sloKey]) {
+      return course[k][sloKey];
+    }
+  }
+
+  return null;
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// SUBJECT-SPECIFIC FALLBACK GENERATORS (WHEN NO DB/PORTAL DATA EXISTS)
+// ═════════════════════════════════════════════════════════════════════
+function getDefaultTopicForCourse(courseCode, rawNum, displaySessNum) {
+  const code = (courseCode || '').toUpperCase();
+  if (code.includes('LEM') || code.includes('HUMAN') || code.includes('VALUE')) {
+    if (rawNum >= 300 || rawNum > 20) return `Harmony in Nature and Universal Order`;
+    if (rawNum >= 200 || rawNum > 10) return `Harmony in Human-Human Relationships and Society`;
+    return `Understanding Harmony in Human Being and Self Exploration`;
+  }
+  if (code.includes('202J') || code.includes('OPERAT') || code.includes('OS')) {
+    if (rawNum >= 300 || rawNum > 20) return `Memory Management, Virtual Memory, and Storage Systems`;
+    if (rawNum >= 200 || rawNum > 10) return `Process Synchronization, Concurrency, and Deadlocks`;
+    return `Operating System Structure, System Calls, and CPU Scheduling`;
+  }
+  if (code.includes('201J') || code.includes('DATA') || code.includes('DSA')) {
+    if (rawNum >= 300 || rawNum > 20) return `Non-Linear Data Structures: Trees and Graphs`;
+    if (rawNum >= 200 || rawNum > 10) return `Linear Data Structures: Stacks, Queues, and Linked Lists`;
+    return `C Fundamentals, Pointers, and Algorithm Analysis`;
+  }
+  if (code.includes('101T') || code.includes('OBJECT') || code.includes('OOP')) {
+    return `Object-Oriented Design, UML Modeling, and Software Patterns`;
+  }
+  return `Session ${displaySessNum}: Core Curriculum Topics`;
+}
+
+function getDefaultSloTitleForCourse(courseCode, sloNum, sessionTopic) {
+  const code = (courseCode || '').toUpperCase();
+  if (code.includes('LEM') || code.includes('HUMAN') || code.includes('VALUE')) {
+    return sloNum === 1
+      ? 'SLO 1: Understanding Fundamental Concepts of Harmony and Values'
+      : 'SLO 2: Practical Reflection and Experiential Validation in Conduct';
+  }
+  if (code.includes('202J') || code.includes('OPERAT') || code.includes('OS')) {
+    return sloNum === 1
+      ? 'SLO 1: Theoretical Architecture and System Call Principles'
+      : 'SLO 2: Algorithm Implementation and Performance Analysis';
+  }
+  if (code.includes('201J') || code.includes('DATA') || code.includes('DSA')) {
+    return sloNum === 1
+      ? 'SLO 1: Data Structure Representation and Mechanics'
+      : 'SLO 2: Algorithm Complexity and Problem Solving';
+  }
+  return sloNum === 1 ? 'SLO 1: Foundational Principles' : 'SLO 2: Practical Application & Analysis';
+}
+
+function generateAnswerForSubject(question, courseCode) {
+  const code = (courseCode || '').toUpperCase();
+  const qClean = cleanHtmlForPdf(question);
+
+  if (code.includes('LEM') || code.includes('HUMAN') || code.includes('VALUE')) {
+    return `In Universal Human Values, this proposal is evaluated through the lens of Natural Acceptance and right understanding. At the level of the Self, harmony requires clear alignment between desires, thoughts, and expectations, eliminating internal contradiction. In relationship, mutual happiness is ensured through foundational values—primarily Trust (recognizing positive intention) and Respect (evaluating others as similar to oneself). At the level of nature and existence, the human role is to live in mutual enrichment and coexistence with all four orders of nature.`;
+  }
+
+  if (code.includes('202J') || code.includes('OPERAT') || code.includes('OS')) {
+    return `From an operating systems design perspective, this concept addresses low-level hardware abstraction and concurrent resource management. The OS kernel enforces process isolation, CPU scheduling fairness, and secure memory translation via hardware support (such as paging, TLB caches, and dual-mode CPU rings). Proper synchronization primitives (mutexes, semaphores) are applied to prevent race conditions and deadlock situations while maintaining optimal throughput.`;
+  }
+
+  if (code.includes('201J') || code.includes('DATA') || code.includes('DSA')) {
+    return `In data structures and algorithm design, this involves evaluating time and space complexity trade-offs (using Big-O notation). Memory allocation, pointer manipulations, and data organization principles are optimized to balance insertion, search, and deletion operational costs across static contiguous arrays and dynamic linked structures.`;
+  }
+
+  return `Comprehensive analysis demonstrates that applying fundamental engineering and analytical principles ensures optimal efficiency, reliability, and correctness in this problem domain.`;
+}
+
+function generateCourseSpecificQuestions(courseCode, rawNum, sloNum, sessionTopic, sloTitle) {
+  const code = (courseCode || '').toUpperCase();
+
+  if (code.includes('LEM') || code.includes('HUMAN') || code.includes('VALUE')) {
+    if (sloNum === 1) {
+      return [
+        {
+          q: 'Explain the role of Natural Acceptance in resolving contradictions within the Self.',
+          a: 'Natural Acceptance is the innate, unconditional human faculty that recognizes what is naturally right and acceptable. Unlike desires conditioned by peer pressure or sensory pleasures, natural acceptance is invariant with time, place, and person. When our thoughts and selections align with natural acceptance, internal conflicts and contradictions are eliminated, leading to continuous happiness (Sukh) and peace of mind.'
+        },
+        {
+          q: 'Differentiate between the needs of the Self (\'I\') and the needs of the Body.',
+          a: 'The human being is a co-existence of the sentient Self (\'I\') and the physical Body.\n1. Needs: The needs of the Self are qualitative and continuous (happiness, respect, trust), while the needs of the Body are physical, quantitative, and limited in time (food, clothing, shelter).\n2. Activities: The Self engages in desires, thoughts, and expectations. The Body functions as an instrument through physiological activities.\n3. Fulfillment: Needs of the Self are fulfilled through Right Understanding and Feelings, while bodily needs are satisfied through Physical Facilities (Suvidha).'
+        }
+      ];
+    } else {
+      return [
+        {
+          q: 'Explain Trust (Vishwas) and Respect (Samman) as foundational values in human relationships.',
+          a: 'Trust is the assurance that the other person genuinely intends to make me happy and prosperous. UHV emphasizes the distinction between Intention (what one naturally wants, which is always positive) and Competence (ability to fulfill that intention). Doubting another\'s intention leads to opposition and anger; understanding that mistakes arise from lack of competence fosters patience and mutual development.\nRespect means Right Evaluation of the other person as being similar to oneself in purpose and potential, avoiding discrimination based on age, gender, race, or wealth.'
+        },
+        {
+          q: 'Describe the interconnectedness and mutual fulfillment among the four orders of Nature.',
+          a: 'Nature consists of four orders: Material Order (soil, water, air), Plant Order (vegetation), Animal Order (animals, birds), and Human Order. The first three orders naturally exist in mutual enrichment, recyclability, and self-regulation. The human order must cultivate right understanding to participate constructively in this harmony, ensuring prosperity without depleting or polluting ecological systems.'
+        }
+      ];
+    }
+  }
+
+  if (code.includes('202J') || code.includes('OPERAT') || code.includes('OS')) {
+    if (sloNum === 1) {
+      return [
+        {
+          q: 'Explain the difference between a Process and a Thread, and describe the contents of a Process Control Block (PCB).',
+          a: 'A process is an executing instance of a program with its own dedicated virtual address space, memory segments (code, data, heap, stack), and file descriptors. A thread is a lightweight unit of execution within a process that shares the address space, code, and global variables with peer threads, but maintains its own program counter, CPU registers, and stack.\nThe Process Control Block (PCB) contains essential OS bookkeeping data: Process ID (PID), Process State, Program Counter, CPU registers, CPU scheduling priority, Memory-management info (page tables), and I/O status info.'
+        },
+        {
+          q: 'Describe the four necessary conditions for Deadlock to occur in an operating system.',
+          a: 'A deadlock can occur if and only if all four Coffman conditions hold simultaneously:\n1. Mutual Exclusion: At least one resource must be held in a non-shareable mode.\n2. Hold and Wait: A process holding at least one resource must be waiting to acquire additional resources held by other processes.\n3. No Preemption: Resources cannot be forcibly seized from a process; they can only be released voluntarily.\n4. Circular Wait: A closed chain of processes exists such that each process holds a resource that is requested by the next process in the cycle.'
+        }
+      ];
+    } else {
+      return [
+        {
+          q: 'Explain the concept of Virtual Memory and how Demand Paging handles Page Faults.',
+          a: 'Virtual Memory decouples user logical memory from physical RAM, allowing execution of processes that require more memory than is physically available.\nDemand Paging brings pages into physical memory only when they are referenced during execution:\n1. When the CPU references an unmapped page, the MMU triggers a Page Fault interrupt.\n2. The OS kernel traps to an interrupt handler, verifies the validity of the virtual address, and locates the page on backing swap storage.\n3. The OS allocates an empty physical frame, reads the page from disk into RAM, updates the page table entry (setting valid bit to 1), and restarts the faulted instruction.'
+        }
+      ];
+    }
+  }
+
+  if (code.includes('201J') || code.includes('DATA') || code.includes('DSA')) {
+    if (sloNum === 1) {
+      return [
+        {
+          q: 'Compare contiguous array memory allocation with dynamic Singly Linked Lists.',
+          a: '1. Arrays: Stored in contiguous memory locations. Offers O(1) random access by index. Disadvantages include fixed size allocated at compilation/creation and O(n) worst-case time for insertions and deletions due to element shifting.\n2. Linked Lists: Stored in non-contiguous dynamic heap memory where each node holds data and a pointer to the next node. Allows efficient O(1) insertions and deletions at known positions, but requires O(n) sequential traversal and extra memory overhead for pointer storage.'
+        },
+        {
+          q: 'Describe the stack data structure and its common computer science applications.',
+          a: 'A Stack is a linear data structure following the LIFO (Last-In, First-Out) principle. Primary operations are push() and pop(), both running in O(1) time.\nApplications include:\n1. Function call management and recursion execution via runtime call stacks.\n2. Expression evaluation and infix to postfix/prefix syntax conversion.\n3. Syntax verification (balanced parentheses checking in compilers).\n4. Undo/redo operations in applications and backtracking algorithms (DFS).'
+        }
+      ];
+    } else {
+      return [
+        {
+          q: 'Explain Binary Search Trees (BST) and demonstrate in-order, pre-order, and post-order traversals.',
+          a: 'A Binary Search Tree is a binary tree where for each node, all keys in the left subtree are smaller, and all keys in the right subtree are greater than the node\'s key. On average, search, insertion, and deletion operate in O(log n) time.\nTraversals:\n• In-order (Left, Root, Right): Traverses keys in sorted ascending order.\n• Pre-order (Root, Left, Right): Useful for creating copies of the tree structure.\n• Post-order (Left, Right, Root): Useful for bottom-up node deletion and syntax tree evaluation.'
+        }
+      ];
+    }
+  }
+
+  return [
+    {
+      q: `Analyze the core principles of ${cleanHtmlForPdf(sessionTopic)}.`,
+      a: `A rigorous study of this topic demonstrates that applying foundational domain principles leads to systematic problem formulation, robust system architecture, and verifiable results across all operational scenarios.`
+    }
+  ];
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// MAIN ANSWER PDF BUILDER
+// ═════════════════════════════════════════════════════════════════════
 async function buildSessionAnswerPDF(sessionNum, sloNum, currentSessionData, state) {
-  const courseCode = state.currentSubject?.code || '21CSC203P';
-  const courseName = state.currentSubject?.name || 'Advanced Programming Practice';
+  const rawCode = (state.currentSubject?.code || '21LEM202T').toUpperCase().trim();
+  const courseCode = rawCode;
+  const courseName = (state.currentSubject?.name || SRM_COURSE_NAMES[rawCode] || 'UNIVERSAL HUMAN VALUES').toUpperCase().trim();
   const studentName = state.studentName || 'VADDI JEEVAN VENKATA RANGA SAI';
   const regNum = state.regNum || 'RA2511026011232';
   const branch = state.department || 'CSE (AI/ML)';
@@ -477,134 +744,155 @@ async function buildSessionAnswerPDF(sessionNum, sloNum, currentSessionData, sta
   const contentW = W - (M * 2);
   let y = 14;
 
-  // Header Title
-  doc.setFontSize(12);
+  // Header Title - EXACT layout as official SRM Question PDF
+  doc.setFontSize(10.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
-  doc.text('SRM INSTITUTE OF SCIENCE AND TECHNOLOGY, Kattankulathur', M, y);
-  y += 6;
+  doc.text('SRM INSTITUTE OF SCIENCE AND TECHNOLOGY', W / 2, y, { align: 'center' });
+  y += 5;
+
+  doc.setFontSize(9);
+  doc.text('FACULTY OF ENGINEERING AND TECHNOLOGY', W / 2, y, { align: 'center' });
+  y += 4.5;
+
+  doc.text('SCHOOL OF COMPUTING', W / 2, y, { align: 'center' });
+  y += 4.5;
+
+  const deptUpper = (state.department || 'Department of Computational Intelligence').toUpperCase();
+  const deptStr = deptUpper.includes('DEPARTMENT') ? deptUpper : `DEPARTMENT OF ${deptUpper}`;
+  doc.text(deptStr, W / 2, y, { align: 'center' });
+  y += 4.5;
+
+  doc.text(`${courseCode} ${courseName}`, W / 2, y, { align: 'center' });
+  y += 7.5;
+
+  const numMatch = String(sessionNum || '1').match(/\d+/);
+  const rawNum = numMatch ? parseInt(numMatch[0], 10) : 1;
+  const displaySessNum = (rawNum > 100) ? (rawNum % 100) : rawNum;
+
+  // 1. Session Topic Resolution
+  let sessionTopic = '';
+  if (currentSessionData?.sessStatus?.SESSION_NAME && !currentSessionData.sessStatus.SESSION_NAME.startsWith('Session')) {
+    sessionTopic = currentSessionData.sessStatus.SESSION_NAME;
+  } else if (state.currentSession?.sess?.name && !state.currentSession.sess.name.match(/^Session\s*\d+$/i)) {
+    sessionTopic = state.currentSession.sess.name;
+  } else if (currentSessionData?.qData?.sp?.title) {
+    sessionTopic = currentSessionData.qData.sp.title;
+  }
+
+  // 2. SLO Title Resolution
+  let sloTitle = '';
+  const qSlo = currentSessionData?.qData?.slo;
+  if (sloNum === 1) {
+    if (qSlo?.SLO1) sloTitle = qSlo.SLO1;
+    else if (qSlo?.SRO1) sloTitle = qSlo.SRO1;
+  } else {
+    if (qSlo?.SLO2) sloTitle = qSlo.SLO2;
+    else if (qSlo?.SRO2) sloTitle = qSlo.SRO2;
+  }
+
+  // Check known course database if live metadata was generic
+  const knownSLO = findKnownSLO(courseCode, sessionNum, sloNum, state || sessionTopic);
+  if (!sessionTopic && knownSLO?.topic) sessionTopic = knownSLO.topic;
+  if (!sloTitle && knownSLO?.slo) sloTitle = knownSLO.slo;
+
+  if (!sessionTopic) sessionTopic = getDefaultTopicForCourse(courseCode, rawNum, displaySessNum);
+  if (!sloTitle) sloTitle = getDefaultSloTitleForCourse(courseCode, sloNum, sessionTopic);
+
+  let displayTopic = sessionTopic.includes('Session') ? sessionTopic : `Session ${displaySessNum}: ${sessionTopic}`;
+  let displaySlo = sloTitle.includes('SLO') ? sloTitle : `SLO ${sloNum}: ${sloTitle}`;
 
   doc.setFontSize(9.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(71, 85, 105);
-  doc.text(`School of Computing — ${courseCode} (${courseName})`, M, y);
-  y += 6;
-
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 41, 59);
-  doc.text(`Session ${sessionNum} — SLO ${sloNum} Student Activity Worksheet`, M, y);
-  y += 7;
+  const topicLines = doc.splitTextToSize(displayTopic, contentW);
+  doc.text(topicLines, M, y);
+  y += (topicLines.length * 4.8) + 1;
+
+  const sloLines = doc.splitTextToSize(displaySlo, contentW);
+  doc.text(sloLines, M, y);
+  y += (sloLines.length * 4.8) + 2.5;
 
   // Clean non-overlapping student table
   y = drawStudentHeaderTable(doc, M, y, contentW, studentName, regNum, branch, dateStr);
 
-  // Check verified course knowledge base
-  const knownCourse = SRM_WORKSHEETS_DB[courseCode];
-  const knownSession = knownCourse?.[sessionNum];
-  const knownSLO = knownSession?.[sloNum];
+  // 3. Extract Questions & Answers List
+  // ─────────────────────────────────────────────────────────────────
+  // STRATEGY: The answer PDF must answer the EXACT same questions from
+  // the SRM question worksheet PDF. Priority order:
+  //   1. Live SRM portal data (sq = short questions, lq = long questions)
+  //   2. Static DB for this exact course/session combination
+  //   3. Subject-specific dynamic generator (never crosses subjects)
+  // ─────────────────────────────────────────────────────────────────
+  let questionsList = [];
 
-  if (knownSLO) {
-    // Topic & SLO Sub-header
-    doc.setFillColor(238, 242, 255);
-    doc.rect(M, y, contentW, 7, 'F');
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(67, 56, 202);
-    doc.text(`${knownSLO.topic} • ${knownSLO.slo}`, M + 3, y + 4.8);
-    y += 11;
+  // Priority 1: LIVE SRM PORTAL DATA (currentSessionData.qData)
+  // SRM sends sq (short q), lq (long q) for the exact worksheet.
+  const qData = currentSessionData?.qData;
+  if (qData) {
+    const rawSq = Array.isArray(qData.sq) ? qData.sq : [];
+    const rawLq = Array.isArray(qData.lq) ? qData.lq : [];
 
-    // Render questions and complete answers
-    knownSLO.qa.forEach((item, idx) => {
-      if (y > 250) { doc.addPage(); y = 16; }
-
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(15, 23, 42);
-      const qLines = doc.splitTextToSize(`Question ${idx + 1}: ${item.q}`, contentW - 4);
-      doc.text(qLines, M + 2, y);
-      y += (qLines.length * 4.6) + 2;
-
-      doc.setFontSize(8.2);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(51, 65, 85);
-      const cleanA = decodeHtmlEntities(item.a);
-      const aLines = doc.splitTextToSize(cleanA, contentW - 4);
-
-      if (y + (aLines.length * 4.2) > 275) {
-        doc.text(aLines.slice(0, 15), M + 2, y);
-        doc.addPage();
-        y = 16;
-        doc.text(aLines.slice(15), M + 2, y);
-        y += ((aLines.length - 15) * 4.2) + 7;
-      } else {
-        doc.text(aLines, M + 2, y);
-        y += (aLines.length * 4.2) + 7;
-      }
-    });
-
-  } else {
-    // Dynamic Fallback: Distinct Questions & Answers for SLO 1 vs SLO 2
-    const sloObjective = sloNum === 1 
-      ? (currentSessionData.qData?.slo?.SLO1 || 'Understand fundamental concepts and core syntax')
-      : (currentSessionData.qData?.slo?.SLO2 || 'Demonstrate hands-on problem solving, implementation, and analysis');
-
-    doc.setFillColor(238, 242, 255);
-    doc.rect(M, y, contentW, 7, 'F');
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(67, 56, 202);
-    doc.text(`SLO ${sloNum} Learning Outcome: ${decodeHtmlEntities(sloObjective).slice(0, 75)}…`, M + 3, y + 4.8);
-    y += 11;
-
-    doc.setFontSize(9.5);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 41, 59);
-    doc.text(`Session Questions & Detailed Solutions (SLO ${sloNum})`, M, y);
-    y += 7;
-
-    let questionsPool = [];
+    // Build the question list from live SRM data, combining sq + lq properly.
+    // SLO 1 = primarily short questions; SLO 2 = primarily long questions.
+    // But ALWAYS include answers for all available items.
+    let liveItems = [];
     if (sloNum === 1) {
-      questionsPool = (currentSessionData.qData?.sq || []).map(q => ({
-        q: decodeHtmlEntities(q.QUESTION_DESC),
-        a: decodeHtmlEntities(q.ANSWER || 'The fundamental principle is implemented following verified standards.')
-      }));
-      if (questionsPool.length === 0) {
-        questionsPool.push({
-          q: `Explain the foundational concepts and theoretical principles of Session ${sessionNum}.`,
-          a: `The core objective of Session ${sessionNum} (SLO 1) focuses on understanding language specifications, syntax constructs, and execution lifecycles. All operations strictly adhere to formal standards.`
-        });
-      }
+      liveItems = [...rawSq, ...rawLq];
     } else {
-      questionsPool = (currentSessionData.qData?.lq || []).map(q => ({
-        q: decodeHtmlEntities(q.QUESTION_DESC),
-        a: decodeHtmlEntities(q.ANSWER || 'The practical implementation demonstrates algorithm efficiency and modular structure.')
-      }));
-      if (questionsPool.length === 0) {
-        questionsPool.push({
-          q: `Implement practical problem-solving logic and demonstrate coding application for Session ${sessionNum}.`,
-          a: `In SLO 2, practical hands-on exercises demonstrate class structure, modular decomposition, and algorithmic verification. Code is structured cleanly with input handling and exception resilience.`
-        });
-      }
+      liveItems = [...rawLq, ...rawSq];
     }
 
-    questionsPool.forEach((item, idx) => {
-      if (y > 255) { doc.addPage(); y = 16; }
-
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(15, 23, 42);
-      const qLines = doc.splitTextToSize(`Question ${idx + 1}: ${item.q}`, contentW - 4);
-      doc.text(qLines, M + 2, y);
-      y += (qLines.length * 4.6) + 2;
-
-      doc.setFontSize(8.2);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(51, 65, 85);
-      const aLines = doc.splitTextToSize(`Solution:\n${item.a}`, contentW - 4);
-      doc.text(aLines, M + 2, y);
-      y += (aLines.length * 4.2) + 7;
-    });
+    questionsList = liveItems
+      .map(item => ({
+        q: cleanHtmlForPdf(item.QUESTION_DESC),
+        a: cleanHtmlForPdf(item.ANSWER) || generateAnswerForSubject(item.QUESTION_DESC, courseCode)
+      }))
+      .filter(x => x.q && x.q.length > 3);
   }
+
+  // Priority 2: STATIC REPOSITORY (for that exact course+session ONLY, never different session)
+  if (questionsList.length === 0 && knownSLO?.qa?.length > 0) {
+    questionsList = knownSLO.qa;
+  }
+
+  // Priority 3: SUBJECT-AWARE DYNAMIC GENERATOR (strictly tailored to this courseCode only)
+  if (questionsList.length === 0) {
+    questionsList = generateCourseSpecificQuestions(courseCode, rawNum, sloNum, sessionTopic, sloTitle);
+  }
+
+  // Render each question with answer immediately below it
+  questionsList.forEach((item, idx) => {
+    if (y > 245) { doc.addPage(); y = 16; }
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    const qLines = doc.splitTextToSize(`${idx + 1}.  ${cleanHtmlForPdf(item.q)}`, contentW - 4);
+    doc.text(qLines, M + 2, y);
+    y += (qLines.length * 4.6) + 2.5;
+
+    doc.setFontSize(8.4);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(67, 56, 202);
+    doc.text('Answer:', M + 2, y);
+    y += 4.5;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(30, 41, 59);
+    const cleanA = cleanHtmlForPdf(item.a);
+    const aLines = doc.splitTextToSize(cleanA, contentW - 6);
+
+    for (let i = 0; i < aLines.length; i++) {
+      if (y > 275) {
+        doc.addPage();
+        y = 16;
+      }
+      doc.text(aLines[i], M + 4, y);
+      y += 4.2;
+    }
+    y += 5.5;
+  });
 
   const pdfUri = doc.output('datauristring');
   if (currentSessionData) {

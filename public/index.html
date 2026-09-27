@@ -19,8 +19,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com"/>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.9/pdf-lib.min.js"></script>
+  <script src="jspdf.umd.min.js"></script>
+  <script src="pdf-lib.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <link rel="stylesheet" href="style.css"/>
 </head>
@@ -141,6 +141,15 @@
         <div class="user-reg" id="userReg">RA...</div>
       </div>
       <button class="logout-btn" onclick="doLogout()" title="Logout">↩</button>
+    </div>
+
+    <!-- Personal Drive Status Widget in Sidebar -->
+    <div class="sidebar-drive-status" id="sidebarDriveStatus" onclick="openDriveModal()" title="Personal Google Drive Settings (Required for SRM submission)" style="cursor:pointer;padding:8px 12px;margin:8px 12px 14px 12px;border-radius:10px;background:#0b1122;border:1px solid #1e293b;font-size:0.75rem;display:flex;align-items:center;justify-content:space-between;transition:border-color 0.2s">
+      <span style="display:flex;align-items:center;gap:6px">
+        <span>📁</span>
+        <span style="color:#cbd5e1;font-weight:600">Personal Drive</span>
+      </span>
+      <span id="sidebarDriveBadge" class="drive-pill unlinked">🔴 Link</span>
     </div>
   </aside>
 
@@ -653,42 +662,78 @@
 
 <!-- GOOGLE DRIVE SYNC & UPLOAD MODAL -->
 <div class="modal-bg hidden" id="driveModal">
-  <div class="modal-box" style="max-width:500px;text-align:left">
+  <div class="modal-box" style="max-width:540px;text-align:left;padding:24px;max-height:85vh;overflow-y:auto">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
       <div style="display:flex;align-items:center;gap:12px">
-        <div style="background:rgba(37,99,235,0.2);color:#60a5fa;width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.3rem">📁</div>
+        <div style="background:rgba(37,99,235,0.2);color:#60a5fa;width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.4rem">📁</div>
         <div>
-          <h2 style="margin:0;font-size:1.15rem;color:#f8fafc">Google Drive Sync</h2>
-          <div style="font-size:0.8rem;color:#94a3b8">Link your personal Google Drive for worksheet submissions</div>
+          <h2 style="margin:0;font-size:1.15rem;color:#f8fafc;display:flex;align-items:center;gap:8px">
+            Link Your Personal Google Drive
+            <span id="modalDriveStatusBadge" class="drive-pill unlinked">🔴 Not Linked</span>
+          </h2>
+          <div style="font-size:0.78rem;color:#94a3b8">Submissions must open from your personal Drive only</div>
         </div>
       </div>
-      <button onclick="closeDriveModal()" style="background:none;border:none;color:#94a3b8;font-size:1.2rem;cursor:pointer">✕</button>
+      <button onclick="closeDriveModal()" style="background:#374151;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:0.85rem;font-weight:600;cursor:pointer">✕ Close</button>
     </div>
 
-    <div style="background:#0b1122;border:1px solid #1e293b;border-radius:10px;padding:12px;margin-bottom:14px;font-size:0.8rem;color:#cbd5e1;line-height:1.5">
-      <strong>Faculty Requirement Protection:</strong> Faculty require that submitted links are from your personal Google Drive (<code>https://drive.google.com/file/d/...</code>). All generated answer sheets are linked directly to your Drive to protect your grades.
+    <!-- Mandatory Notice -->
+    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:0.8rem;color:#fca5a5;line-height:1.5">
+      <strong>⚠️ Faculty Requirement Protection:</strong> Submitted worksheet links must be stored in and open from <u>your own personal Google Drive</u>. Synthetic/fake links are never allowed. Every link submitted opens genuinely on Google Drive!
     </div>
 
-    <div style="display:grid;gap:12px;margin-bottom:16px">
-      <div>
-        <label style="display:block;font-size:0.8rem;color:#94a3b8;margin-bottom:4px;font-weight:600">Student Account / SRM Email</label>
-        <input type="text" id="modalDriveEmail" class="slo-link-input" style="width:100%" placeholder="ra2511026011232@srmist.edu.in"/>
+    <!-- Method 1: Instant Google Drive Folder URL (10 Seconds, 0 Errors) -->
+    <div style="background:#0b1122;border:1px solid #1e293b;border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:0.84rem;font-weight:700;color:#10b981">✦ Method 1: Personal Drive Folder Link (Recommended — 10 Seconds)</span>
+        <span class="drive-pill connected" style="font-size:0.68rem;padding:2px 8px">Fastest</span>
+      </div>
+      <p style="font-size:0.76rem;color:#94a3b8;margin:0 0 10px 0;line-height:1.4">
+        1. Open <a href="https://drive.google.com" target="_blank" rel="noopener noreferrer" style="color:#38bdf8;text-decoration:underline">drive.google.com</a> and create or open a folder (e.g. <em>SRM Worksheets</em>).<br>
+        2. Right-click the folder &gt; <strong>Share</strong> &gt; set General Access to <strong>Anyone with the link can view</strong> &gt; click <strong>Copy link</strong>.<br>
+        3. Paste that folder link below and click the green button below!
+      </p>
+
+      <div style="margin-bottom:8px">
+        <label style="display:block;font-size:0.76rem;color:#94a3b8;margin-bottom:4px;font-weight:600">Your Google Drive Folder URL</label>
+        <input type="text" id="modalDriveFolderUrl" class="slo-link-input" style="width:100%" placeholder="https://drive.google.com/drive/folders/1ABCxyz..." onkeydown="if(event.key==='Enter')saveDriveSettingsFromModal()"/>
       </div>
       <div>
-        <label style="display:block;font-size:0.8rem;color:#94a3b8;margin-bottom:4px;font-weight:600">Personal Google Drive Folder Link (Optional)</label>
-        <input type="text" id="modalDriveFolderUrl" class="slo-link-input" style="width:100%" placeholder="https://drive.google.com/drive/folders/1ABCxyz..."/>
-        <div style="font-size:0.75rem;color:#64748b;margin-top:4px">Paste the link of your Google Drive folder for college worksheets.</div>
+        <label style="display:block;font-size:0.76rem;color:#94a3b8;margin-bottom:4px;font-weight:600">Student SRM Mail ID</label>
+        <input type="text" id="modalDriveEmail" class="slo-link-input" style="width:100%" placeholder="ra2511026011232@srmist.edu.in" onkeydown="if(event.key==='Enter')saveDriveSettingsFromModal()"/>
       </div>
-      <div>
-        <label style="display:block;font-size:0.8rem;color:#94a3b8;margin-bottom:4px;font-weight:600">Google Apps Script Webhook (Optional Auto-Upload)</label>
-        <input type="text" id="modalDriveWebhook" class="slo-link-input" style="width:100%" placeholder="https://script.google.com/macros/s/.../exec"/>
-        <div style="font-size:0.75rem;color:#64748b;margin-top:4px">Uploads PDF straight into your Google Drive in 1 click.</div>
-      </div>
+      <button type="button" class="modal-confirm" style="width:100%;margin-top:12px;background:#059669;padding:12px;font-size:0.95rem;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 14px rgba(5,150,105,0.4);border-radius:8px;cursor:pointer" onclick="saveDriveSettingsFromModal()">
+        ✓ Save &amp; Link This Google Drive Folder (OK)
+      </button>
     </div>
 
-    <div class="modal-actions" style="justify-content:flex-end">
-      <button class="modal-cancel" onclick="closeDriveModal()">Cancel</button>
-      <button class="modal-confirm" style="background:#2563eb" onclick="saveDriveSettingsFromModal()">Save &amp; Link Drive</button>
+    <!-- Method 2: Google Apps Script Direct Auto-Uploader (Optional Background Uploader) -->
+    <div style="background:#0b1122;border:1px solid #1e293b;border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:0.82rem;font-weight:700;color:#60a5fa">✦ Method 2: Direct Auto-Uploader Webhook (Optional)</span>
+        <button type="button" class="btn-srm-drive" style="padding:4px 10px;font-size:0.72rem" onclick="copyAppsScriptCode()">📋 Copy Script Code</button>
+      </div>
+      <p style="font-size:0.75rem;color:#94a3b8;margin:0 0 10px 0;line-height:1.4">
+        1. Open <a href="https://script.google.com/home/start" target="_blank" rel="noopener noreferrer" style="color:#38bdf8;text-decoration:underline">script.google.com</a> &gt; Click <strong>New project</strong>.<br>
+        2. Delete default code, paste the copied script, and click <strong>Deploy &gt; New deployment</strong>.<br>
+        3. Select type <strong>Web app</strong>, set Who has access to <strong>Anyone</strong>, and click <strong>Deploy</strong>.<br>
+        <span style="color:#fbbf24">💡 If Google shows "Google hasn't verified this app", click <em>Advanced</em> &gt; <em>Go to Untitled project (unsafe)</em> &gt; <em>Allow</em>.</span><br>
+        4. Paste Web App URL below and click Test &amp; Connect!
+      </p>
+
+      <div style="display:flex;gap:8px;margin-bottom:6px">
+        <input type="text" id="modalDriveWebhook" class="slo-link-input" style="flex:1" placeholder="https://script.google.com/macros/s/.../exec"/>
+        <button type="button" id="modalDriveTestBtn" class="btn-srm-drive" style="white-space:nowrap;padding:8px 12px" onclick="testDriveConnectionAction()">⚡ Test &amp; Connect</button>
+      </div>
+      <div id="modalDriveTestResult" style="font-size:0.76rem;margin-top:6px;display:none"></div>
+    </div>
+
+    <div class="modal-actions" style="justify-content:space-between;align-items:center">
+      <div style="font-size:0.75rem;color:#64748b" id="modalDriveFooterMsg">Link personal Drive to unlock submissions</div>
+      <div style="display:flex;gap:8px">
+        <button class="modal-cancel" onclick="closeDriveModal()">Cancel</button>
+        <button class="modal-confirm" style="background:#2563eb" onclick="saveDriveSettingsFromModal()">OK / Done</button>
+      </div>
     </div>
   </div>
 </div>
@@ -755,7 +800,8 @@
 <!-- TOAST -->
 <div class="toast hidden" id="toast"></div>
 
-<script src="srm-worksheets.js"></script>
-<script src="app.js"></script>
+<script src="srm-worksheets.js?v=2026092705"></script>
+<script src="app.js?v=2026092705"></script>
 </body>
+
 </html>

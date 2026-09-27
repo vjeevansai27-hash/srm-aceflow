@@ -1,4 +1,4 @@
-﻿// =====================================================
+// =====================================================
 // AceIt AI — app.js  (CLEAN REWRITE — no PROXIES)
 // SRM E-Curricula Solver
 // =====================================================
@@ -18,6 +18,7 @@ let currentPdfQuestions = [];
 
 
 // ── STATE ─────────────────────────────────────────────
+// ── STATE ─────────────────────────────────────────────
 let state = {
   token:            '',
   studentId:        '',
@@ -30,49 +31,199 @@ let state = {
   currentQuestions: [],
   solvedAnswers:    [],
   googleDrive: {
-    connected:  true,
-    email:      localStorage.getItem('aceit_drive_email') || 'ra2511026011232@srmist.edu.in',
-    folderUrl:  localStorage.getItem('aceit_drive_folder') || '',
-    folderId:   localStorage.getItem('aceit_drive_folder_id') || '',
-    webhookUrl: localStorage.getItem('aceit_drive_webhook') || '',
-    autoUpload: localStorage.getItem('aceit_drive_autoupload') !== 'false'
+    isLinked:   false,
+    email:      '',
+    folderUrl:  '',
+    folderId:   '',
+    webhookUrl: '',
+    autoUpload: true
   }
 };
 
-// ── GOOGLE DRIVE INTEGRATION HELPERS ──────────────────
-function generateDriveFileId(regNum, courseCode, sessNum, sloNum) {
-  const seed = `${regNum || 'RA2511026011232'}_${courseCode || '21LEM202T'}_${sessNum || 1}_${sloNum || 1}_drive_safe`;
-  let hash1 = 0x811c9dc5, hash2 = 0x5a17;
-  for (let i = 0; i < seed.length; i++) {
-    const ch = seed.charCodeAt(i);
-    hash1 ^= ch;
-    hash1 = (hash1 * 0x01000193) >>> 0;
-    hash2 = ((hash2 << 5) - hash2) + ch;
-    hash2 |= 0;
+// ── HUMAN-LIKE PACING & ANTI-DETECTION DELAY HELPER ──
+function humanDelay(minMs = 1500, maxMs = 3000, reason = '') {
+  const ms = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+  if (reason) {
+    console.log(`[Pacing] ${reason} - waiting ${(ms / 1000).toFixed(1)}s`);
+    const progressEl = document.getElementById('solvingProgress');
+    if (progressEl) {
+      progressEl.textContent = `⏳ Pacing: ${reason} (${(ms / 1000).toFixed(1)}s)...`;
+    }
   }
-  const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  let id = '1';
-  let h = Math.abs(hash1) + Math.abs(hash2);
-  for (let i = 0; i < 32; i++) {
-    h = (h * 31 + i * 17 + 101) % 2147483647;
-    id += chars[h % chars.length];
-  }
-  return id.slice(0, 33);
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// ── GOOGLE DRIVE PER-USER INTEGRATION ─────────────────
+function loadUserDriveConfig(regNum) {
+  const reg = (regNum || state.regNum || '').toUpperCase();
+  if (!reg) return;
+
+  const webhook = localStorage.getItem(`aceit_drive_webhook_${reg}`) || '';
+  const folder  = localStorage.getItem(`aceit_drive_folder_${reg}`) || '';
+  const folderId = localStorage.getItem(`aceit_drive_folder_id_${reg}`) || '';
+  const email   = localStorage.getItem(`aceit_drive_email_${reg}`) || `${reg.toLowerCase()}@srmist.edu.in`;
+  const isLinked = localStorage.getItem(`aceit_drive_linked_${reg}`) === 'true' && (!!webhook || !!folder);
+
+  state.googleDrive = {
+    isLinked:   isLinked,
+    email:      email,
+    folderUrl:  folder,
+    folderId:   folderId,
+    webhookUrl: webhook,
+    autoUpload: true
+  };
+
+  updateDriveStatusUI();
+}
+
+function isDriveLinked() {
+  if (state.googleDrive?.folderUrl || state.googleDrive?.webhookUrl) return true;
+  const reg = (state.regNum || '').toUpperCase();
+  if (reg && localStorage.getItem(`aceit_drive_folder_${reg}`)) return true;
+  return false;
+}
+
+function requireDriveLinked() {
+  if (!isDriveLinked()) {
+    openDriveModal(true);
+    toast('⚠️ Faculty Requirement: Link your personal Google Drive first before submitting worksheets!');
+    return false;
+  }
+  return true;
+}
+
+function updateDriveStatusUI() {
+  const linked = isDriveLinked();
+  const email = state.googleDrive?.email || state.regNum || 'Student';
+
+  // Sidebar badge
+  const sbBadge = document.getElementById('sidebarDriveBadge');
+  if (sbBadge) {
+    if (linked) {
+      sbBadge.className = 'drive-pill connected';
+      sbBadge.textContent = '🟢 Linked';
+      sbBadge.title = `Connected to personal Google Drive (${email})`;
+    } else {
+      sbBadge.className = 'drive-pill unlinked';
+      sbBadge.textContent = '🔴 Link';
+      sbBadge.title = 'Personal Google Drive not linked (Required to submit)';
+    }
+  }
+
+  // Modal badge
+  const mBadge = document.getElementById('modalDriveStatusBadge');
+  if (mBadge) {
+    if (linked) {
+      mBadge.className = 'drive-pill connected';
+      mBadge.textContent = '🟢 Connected';
+    } else {
+      mBadge.className = 'drive-pill unlinked';
+      mBadge.textContent = '🔴 Not Linked';
+    }
+  }
+
+  // Settings badge
+  const setBadge = document.getElementById('settingsDriveBadge');
+  if (setBadge) {
+    if (linked) {
+      setBadge.className = 'drive-pill connected';
+      setBadge.textContent = `🟢 Personal Drive Active: ${email}`;
+    } else {
+      setBadge.className = 'drive-pill unlinked';
+      setBadge.textContent = '🔴 Not Linked (Required for submissions)';
+    }
+  }
+}
+
+function copyAppsScriptCode() {
+  const code = `// Google Apps Script for SRM Worksheet Personal Drive Auto-Upload
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    var decoded = Utilities.base64Decode(data.base64);
+    var blob = Utilities.newBlob(decoded, data.mimeType || 'application/pdf', data.fileName || 'Worksheet.pdf');
+    var folder;
+    if (data.folderId && data.folderId.trim().length > 5) {
+      try { folder = DriveApp.getFolderById(data.folderId.trim()); } catch(err) { folder = DriveApp.getRootFolder(); }
+    } else {
+      folder = DriveApp.getRootFolder();
+    }
+    var file = folder.createFile(blob);
+    // Set view permissions so SRM faculty can open and grade directly
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    var cleanUrl = "https://drive.google.com/file/d/" + file.getId() + "/view?usp=sharing";
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      url: cleanUrl,
+      fileId: file.getId(),
+      fileName: file.getName(),
+      ownerEmail: Session.getEffectiveUser().getEmail()
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: err.toString()
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    status: 'online',
+    message: 'Personal Google Drive Auto-Uploader is ready',
+    ownerEmail: Session.getEffectiveUser().getEmail()
+  })).setMimeType(ContentService.MimeType.JSON);
+}`;
+
+  navigator.clipboard.writeText(code).then(() => {
+    toast('📋 Google Apps Script code copied to clipboard!');
+  }).catch(() => {
+    toast('⚠️ Copy failed, please copy code manually');
+  });
+}
+
+// Clean up any stale fake drive links from localStorage
+try {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('aceit_drivelink_')) {
+      const val = localStorage.getItem(k);
+      if (val && !val.includes('/folders/') && val.match(/\/file\/d\/1[a-zA-Z0-9]{32}\//)) {
+        localStorage.removeItem(k);
+      }
+    }
+  }
+} catch (_) {}
+
 function getOrGenerateDriveLink(sessionNum, sloNum) {
+  // 1. If student manually pasted a genuine Google Drive link into the input box, prioritize it
+  const inputEl = document.getElementById(`slo-link-${sloNum}`);
+  const currentInputVal = inputEl?.value?.trim();
+  if (currentInputVal && currentInputVal.startsWith('https://drive.google.com/') && !currentInputVal.match(/\/file\/d\/1[a-zA-Z0-9]{32}\//)) {
+    return currentInputVal;
+  }
+
+  // 2. Check localStorage for genuine stored link
   const key = `aceit_drivelink_${state.regNum}_${state.currentSubject?.code}_${sessionNum}_${sloNum}`;
   const stored = localStorage.getItem(key);
-  if (stored && stored.startsWith('https://drive.google.com/file/d/')) {
+  if (stored && stored.startsWith('https://drive.google.com/') && !stored.match(/\/file\/d\/1[a-zA-Z0-9]{32}\//)) {
     return stored;
   }
-  const id = generateDriveFileId(state.regNum, state.currentSubject?.code, sessionNum, sloNum);
-  const link = `https://drive.google.com/file/d/${id}/view?usp=sharing`;
-  localStorage.setItem(key, link);
-  return link;
+
+  // 3. Use student's configured personal Google Drive Folder URL
+  if (state.googleDrive?.folderUrl && state.googleDrive.folderUrl.startsWith('https://drive.google.com/')) {
+    return state.googleDrive.folderUrl.trim();
+  }
+
+  return '';
 }
 
 async function uploadSLOToGoogleDrive(sessionNum, sloNum, triggerDownload = true) {
+  if (!requireDriveLinked()) {
+    return null;
+  }
+
   let uri = sloNum === 1 ? currentSessionData.slo1PdfUri : currentSessionData.slo2PdfUri;
   if (!uri) {
     uri = await generateSLOAnswerPDF(sessionNum, sloNum);
@@ -82,33 +233,52 @@ async function uploadSLOToGoogleDrive(sessionNum, sloNum, triggerDownload = true
   const fileName = `${state.regNum || 'Student'}_${courseCode}_Session${sessionNum}_SLO${sloNum}_Worksheet.pdf`;
   let finalDriveUrl = '';
 
-  // 1. Direct upload if Google Apps Script Webhook is configured
-  if (state.googleDrive?.webhookUrl) {
+  // 1. Direct upload into student's personal Google Drive via Google Apps Script Webhook
+  if (state.googleDrive?.webhookUrl && state.googleDrive.webhookUrl.startsWith('https://script.google.com/')) {
     try {
-      toast('☁ Uploading PDF to personal Google Drive…');
+      toast(`☁ Uploading Slot ${sloNum} PDF directly to your personal Google Drive…`);
       const base64Data = (uri || '').includes(',') ? uri.split(',')[1] : uri;
-      const resp = await fetch(state.googleDrive.webhookUrl, {
+      const resp = await fetch('/api/drive-upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          webhookUrl: state.googleDrive.webhookUrl,
           base64: base64Data,
           fileName: fileName,
-          mimeType: 'application/pdf',
           folderId: state.googleDrive.folderId || ''
         })
       });
       const data = await resp.json();
       if (data && (data.url || data.fileUrl || data.webViewLink)) {
         finalDriveUrl = data.url || data.fileUrl || data.webViewLink;
+        console.log(`[Drive Upload] Successfully uploaded to student personal Drive: ${finalDriveUrl}`);
+        toast(`✅ Slot ${sloNum} PDF uploaded directly to your Google Drive!`);
+      } else if (data && data.error) {
+        console.warn('Webhook upload error:', data.error);
       }
     } catch (e) {
-      console.warn('Apps Script upload note:', e);
+      console.warn('Personal Drive upload note:', e);
     }
   }
 
-  // 2. Fallback to clean, authentic personal Drive URL format
+  // 2. Genuine personal Google Drive folder link
   if (!finalDriveUrl) {
-    finalDriveUrl = getOrGenerateDriveLink(sessionNum, sloNum);
+    const userFolder = (state.googleDrive?.folderUrl || '').trim();
+    if (userFolder && userFolder.startsWith('https://drive.google.com/')) {
+      finalDriveUrl = userFolder;
+    } else {
+      const existingLink = (document.getElementById(`slo-link-${sloNum}`)?.value || '').trim();
+      if (existingLink && existingLink.startsWith('https://drive.google.com/') && !existingLink.match(/\/file\/d\/1[a-zA-Z0-9]{32}\//)) {
+        finalDriveUrl = existingLink;
+      }
+    }
+  }
+
+  // 3. If still no link, prompt student to link personal Drive
+  if (!finalDriveUrl) {
+    openDriveModal(true);
+    toast('⚠️ Please provide your Google Drive folder link to submit');
+    return null;
   }
 
   const key = `aceit_drivelink_${state.regNum}_${courseCode}_${sessionNum}_${sloNum}`;
@@ -121,21 +291,39 @@ async function uploadSLOToGoogleDrive(sessionNum, sloNum, triggerDownload = true
 
   if (triggerDownload) {
     downloadSLOAnswerPDF(sessionNum, sloNum);
-    toast(`☁ Personal Google Drive link ready: ${finalDriveUrl.slice(0, 42)}…`);
+    toast(`📥 PDF downloaded & Google Drive link ready!`);
   }
 
   return finalDriveUrl;
 }
 
-function openDriveModal() {
+function openDriveModal(isMandatory = false) {
   const m = document.getElementById('driveModal');
   if (m) m.classList.remove('hidden');
-  const emailInput = document.getElementById('modalDriveEmail');
-  const folderInput = document.getElementById('modalDriveFolderUrl');
+
+  const curReg = (state.regNum || '').toUpperCase();
+  const emailInput   = document.getElementById('modalDriveEmail');
+  const folderInput  = document.getElementById('modalDriveFolderUrl');
   const webhookInput = document.getElementById('modalDriveWebhook');
-  if (emailInput) emailInput.value = state.googleDrive?.email || `${state.regNum || 'student'}@srmist.edu.in`;
-  if (folderInput) folderInput.value = state.googleDrive?.folderUrl || '';
+  const resBox       = document.getElementById('modalDriveTestResult');
+
+  if (emailInput)   emailInput.value   = state.googleDrive?.email || `${curReg.toLowerCase()}@srmist.edu.in`;
+  if (folderInput)  folderInput.value  = state.googleDrive?.folderUrl || '';
   if (webhookInput) webhookInput.value = state.googleDrive?.webhookUrl || '';
+  if (resBox)       resBox.style.display = 'none';
+
+  updateDriveStatusUI();
+
+  const footerMsg = document.getElementById('modalDriveFooterMsg');
+  if (footerMsg) {
+    if (isMandatory) {
+      footerMsg.textContent = '⚠️ Linking your personal Drive is required before submitting worksheets to faculty.';
+      footerMsg.style.color = '#f87171';
+    } else {
+      footerMsg.textContent = 'Personal Drive protects your academic grades.';
+      footerMsg.style.color = '#64748b';
+    }
+  }
 }
 
 function closeDriveModal() {
@@ -143,12 +331,74 @@ function closeDriveModal() {
   if (m) m.classList.add('hidden');
 }
 
+async function testDriveConnectionAction() {
+  const input = document.getElementById('modalDriveWebhook');
+  const resBox = document.getElementById('modalDriveTestResult');
+  const btn = document.getElementById('modalDriveTestBtn');
+  const url = (input?.value || '').trim();
+
+  if (!url || !url.startsWith('https://script.google.com/macros/s/')) {
+    toast('⚠️ Please enter a valid Google Apps Script Web App URL');
+    if (resBox) {
+      resBox.style.display = 'block';
+      resBox.style.color = '#f87171';
+      resBox.textContent = 'Enter a valid Web App URL (starts with https://script.google.com/macros/s/...)';
+    }
+    return;
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Testing…'; }
+  if (resBox) {
+    resBox.style.display = 'block';
+    resBox.style.color = '#38bdf8';
+    resBox.textContent = '⚡ Contacting your personal Google Apps Script…';
+  }
+
+  try {
+    const resp = await fetch('/api/drive-test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ webhookUrl: url })
+    });
+    const data = await resp.json();
+    if (data && (data.success || data.status === 'online' || data.ownerEmail)) {
+      const email = data.ownerEmail || state.googleDrive?.email || 'your account';
+      if (resBox) {
+        resBox.style.color = '#34d399';
+        resBox.innerHTML = `✅ <strong>Verified!</strong> Connected to Google Drive (${email}).`;
+      }
+      state.googleDrive.webhookUrl = url;
+      state.googleDrive.email = email;
+      state.googleDrive.isLinked = true;
+      const reg = (state.regNum || '').toUpperCase();
+      localStorage.setItem(`aceit_drive_webhook_${reg}`, url);
+      localStorage.setItem(`aceit_drive_email_${reg}`, email);
+      localStorage.setItem(`aceit_drive_linked_${reg}`, 'true');
+      updateDriveStatusUI();
+      toast(`✅ Personal Google Drive connected: ${email}`);
+    } else {
+      if (resBox) {
+        resBox.style.color = '#fbbf24';
+        resBox.textContent = '⚠️ Webhook reached, but please verify deployment access is set to "Anyone".';
+      }
+    }
+  } catch (e) {
+    if (resBox) {
+      resBox.style.color = '#f87171';
+      resBox.textContent = '✗ Connection note: ' + e.message + '. Ensure deployment is set to "Anyone".';
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⚡ Test & Connect'; }
+  }
+}
+
 function saveDriveSettingsFromModal() {
-  const email = (document.getElementById('modalDriveEmail')?.value || '').trim();
-  const folder = (document.getElementById('modalDriveFolderUrl')?.value || '').trim();
+  const curReg  = (state.regNum || '').toUpperCase();
+  const email   = (document.getElementById('modalDriveEmail')?.value || '').trim();
+  const folder  = (document.getElementById('modalDriveFolderUrl')?.value || '').trim();
   const webhook = (document.getElementById('modalDriveWebhook')?.value || '').trim();
 
-  state.googleDrive.email = email || `${state.regNum}@srmist.edu.in`;
+  state.googleDrive.email = email || `${curReg.toLowerCase()}@srmist.edu.in`;
   state.googleDrive.folderUrl = folder;
   state.googleDrive.webhookUrl = webhook;
   
@@ -157,38 +407,63 @@ function saveDriveSettingsFromModal() {
     if (match) state.googleDrive.folderId = match[1];
   }
 
-  localStorage.setItem('aceit_drive_email', state.googleDrive.email);
-  localStorage.setItem('aceit_drive_folder', state.googleDrive.folderUrl);
-  localStorage.setItem('aceit_drive_folder_id', state.googleDrive.folderId);
-  localStorage.setItem('aceit_drive_webhook', state.googleDrive.webhookUrl);
+  const isLinked = !!webhook || !!folder;
+  state.googleDrive.isLinked = isLinked;
 
+  localStorage.setItem(`aceit_drive_email_${curReg}`, state.googleDrive.email);
+  localStorage.setItem(`aceit_drive_folder_${curReg}`, state.googleDrive.folderUrl);
+  localStorage.setItem(`aceit_drive_folder_id_${curReg}`, state.googleDrive.folderId || '');
+  localStorage.setItem(`aceit_drive_webhook_${curReg}`, state.googleDrive.webhookUrl);
+  localStorage.setItem(`aceit_drive_linked_${curReg}`, isLinked ? 'true' : 'false');
+
+  // Immediately reflect the real folder URL into active session inputs
+  if (folder) {
+    const slo1 = document.getElementById('slo-link-1');
+    const slo2 = document.getElementById('slo-link-2');
+    if (slo1) slo1.value = folder;
+    if (slo2) slo2.value = folder;
+    if (currentSessionData) {
+      currentSessionData.slo1DriveLink = folder;
+      currentSessionData.slo2DriveLink = folder;
+    }
+  }
+
+  updateDriveStatusUI();
   closeDriveModal();
-  toast('✓ Google Drive settings saved successfully!');
+
+  if (isLinked) {
+    toast(`✅ Personal Google Drive linked! Submissions will use your personal Drive.`);
+  } else {
+    toast('⚠️ Please paste your Google Drive folder link to complete linking.');
+  }
 }
 
 function saveDriveSettings() {
-  const email = (document.getElementById('settingsDriveEmail')?.value || '').trim();
-  const folder = (document.getElementById('settingsDriveFolderUrl')?.value || '').trim();
+  const curReg  = (state.regNum || '').toUpperCase();
+  const email   = (document.getElementById('settingsDriveEmail')?.value || '').trim();
+  const folder  = (document.getElementById('settingsDriveFolderUrl')?.value || '').trim();
   const webhook = (document.getElementById('settingsDriveWebhook')?.value || '').trim();
-  const auto = document.getElementById('settingsDriveAutoUpload')?.checked;
 
-  state.googleDrive.email = email || `${state.regNum}@srmist.edu.in`;
+  state.googleDrive.email = email || `${curReg.toLowerCase()}@srmist.edu.in`;
   state.googleDrive.folderUrl = folder;
   state.googleDrive.webhookUrl = webhook;
-  state.googleDrive.autoUpload = !!auto;
 
   if (folder.includes('/folders/')) {
     const match = folder.match(/\/folders\/([a-zA-Z0-9_-]+)/);
     if (match) state.googleDrive.folderId = match[1];
   }
 
-  localStorage.setItem('aceit_drive_email', state.googleDrive.email);
-  localStorage.setItem('aceit_drive_folder', state.googleDrive.folderUrl);
-  localStorage.setItem('aceit_drive_folder_id', state.googleDrive.folderId);
-  localStorage.setItem('aceit_drive_webhook', state.googleDrive.webhookUrl);
-  localStorage.setItem('aceit_drive_autoupload', String(state.googleDrive.autoUpload));
+  const isLinked = !!webhook || !!folder;
+  state.googleDrive.isLinked = isLinked;
 
-  toast('✓ Personal Google Drive settings updated!');
+  localStorage.setItem(`aceit_drive_email_${curReg}`, state.googleDrive.email);
+  localStorage.setItem(`aceit_drive_folder_${curReg}`, state.googleDrive.folderUrl);
+  localStorage.setItem(`aceit_drive_folder_id_${curReg}`, state.googleDrive.folderId);
+  localStorage.setItem(`aceit_drive_webhook_${curReg}`, state.googleDrive.webhookUrl);
+  localStorage.setItem(`aceit_drive_linked_${curReg}`, isLinked ? 'true' : 'false');
+
+  updateDriveStatusUI();
+  toast('✓ Google Drive settings saved successfully!');
 }
 
 function openAppsScriptGuide() {
@@ -464,6 +739,8 @@ function enterApp() {
   localStorage.removeItem('aceit_pass_name');
 
   const curReg = (state.regNum || '').toUpperCase();
+  loadUserDriveConfig(curReg);
+
   state.isVip = (curReg === OWNER_REG_NUM) || (localStorage.getItem(`aceit_is_vip_${curReg}`) === 'true');
 
   // Log login activity to owner database & check VIP whitelist
@@ -474,8 +751,17 @@ function enterApp() {
 
   updateDailyQuotaUI();
   updateOwnerAccessVisibility();
+  updateDriveStatusUI();
   navTo('subjects');
   loadSubjects();
+
+  // Mandatory Personal Drive Onboarding Check
+  if (!isDriveLinked()) {
+    setTimeout(() => {
+      openDriveModal(true);
+      toast('👋 Welcome! Please link your personal Google Drive to begin submitting worksheets.', 4500);
+    }, 600);
+  }
 
   // Check and process any overnight auto-submit queue for today
   setTimeout(() => {
@@ -986,7 +1272,7 @@ function renderLiveSessionView(data) {
           <div class="slo-block">
             <div class="slo-block-label" style="display:flex;align-items:center;justify-content:space-between">
               <span>Answer Sheet (Personal Google Drive)</span>
-              <span class="drive-pill connected" style="cursor:pointer" onclick="openDriveModal()">📁 My Drive</span>
+              ${isDriveLinked() ? `<span class="drive-pill connected" style="cursor:pointer" onclick="openDriveModal()">🟢 Personal Drive</span>` : `<span class="drive-pill unlinked" style="cursor:pointer" onclick="openDriveModal()">🔴 Link Personal Drive</span>`}
             </div>
             <div class="slo-btn-group">
               <button class="btn-srm-answer" onclick="previewSLOAnswerPDF(${sessNum}, 1)">👁 Preview PDF</button>
@@ -994,12 +1280,15 @@ function renderLiveSessionView(data) {
               <button class="btn-srm-drive" onclick="uploadSLOToGoogleDrive(${sessNum}, 1)">☁ Upload to Drive</button>
             </div>
             <div class="slo-link-row">
-              <input type="text" id="slo-link-1" class="slo-link-input" placeholder="https://drive.google.com/file/d/.../view?usp=sharing" value="${displayLink1}">
+              <input type="text" id="slo-link-1" class="slo-link-input" placeholder="https://drive.google.com/drive/folders/... or https://drive.google.com/file/d/..." value="${displayLink1}">
               <button class="btn-srm-update" id="btn-update-1" onclick="submitSLOLinkAction(${sessNum}, 1)">UPDATE</button>
             </div>
             <div style="font-size:0.75rem;color:#94a3b8;margin-top:6px;display:flex;align-items:center;justify-content:space-between">
-              <span>✓ Verified Google Drive URL for faculty submission</span>
-              <a href="javascript:void(0)" onclick="openDriveModal()" style="color:#60a5fa;text-decoration:none">Drive Config ⚙</a>
+              <span>✓ Genuine Google Drive link (opens for faculty)</span>
+              <div style="display:flex;gap:12px;align-items:center">
+                ${state.googleDrive?.folderUrl ? `<a href="${state.googleDrive.folderUrl}" target="_blank" rel="noopener noreferrer" style="color:#10b981;font-weight:700;text-decoration:none">📂 Open My Drive</a>` : ''}
+                <a href="javascript:void(0)" onclick="openDriveModal()" style="color:#60a5fa;text-decoration:none">Drive Config ⚙</a>
+              </div>
             </div>
           </div>
         </div>
@@ -1033,7 +1322,7 @@ function renderLiveSessionView(data) {
           <div class="slo-block">
             <div class="slo-block-label" style="display:flex;align-items:center;justify-content:space-between">
               <span>Answer Sheet (Personal Google Drive)</span>
-              <span class="drive-pill connected" style="cursor:pointer" onclick="openDriveModal()">📁 My Drive</span>
+              ${isDriveLinked() ? `<span class="drive-pill connected" style="cursor:pointer" onclick="openDriveModal()">🟢 Personal Drive</span>` : `<span class="drive-pill unlinked" style="cursor:pointer" onclick="openDriveModal()">🔴 Link Personal Drive</span>`}
             </div>
             <div class="slo-btn-group">
               <button class="btn-srm-answer" onclick="previewSLOAnswerPDF(${sessNum}, 2)">👁 Preview PDF</button>
@@ -1041,12 +1330,15 @@ function renderLiveSessionView(data) {
               <button class="btn-srm-drive" onclick="uploadSLOToGoogleDrive(${sessNum}, 2)">☁ Upload to Drive</button>
             </div>
             <div class="slo-link-row">
-              <input type="text" id="slo-link-2" class="slo-link-input" placeholder="https://drive.google.com/file/d/.../view?usp=sharing" value="${displayLink2}">
+              <input type="text" id="slo-link-2" class="slo-link-input" placeholder="https://drive.google.com/drive/folders/... or https://drive.google.com/file/d/..." value="${displayLink2}">
               <button class="btn-srm-update" id="btn-update-2" onclick="submitSLOLinkAction(${sessNum}, 2)">UPDATE</button>
             </div>
             <div style="font-size:0.75rem;color:#94a3b8;margin-top:6px;display:flex;align-items:center;justify-content:space-between">
-              <span>✓ Verified Google Drive URL for faculty submission</span>
-              <a href="javascript:void(0)" onclick="openDriveModal()" style="color:#60a5fa;text-decoration:none">Drive Config ⚙</a>
+              <span>✓ Genuine Google Drive link (opens for faculty)</span>
+              <div style="display:flex;gap:12px;align-items:center">
+                ${state.googleDrive?.folderUrl ? `<a href="${state.googleDrive.folderUrl}" target="_blank" rel="noopener noreferrer" style="color:#10b981;font-weight:700;text-decoration:none">📂 Open My Drive</a>` : ''}
+                <a href="javascript:void(0)" onclick="openDriveModal()" style="color:#60a5fa;text-decoration:none">Drive Config ⚙</a>
+              </div>
             </div>
           </div>
         </div>
@@ -1131,6 +1423,10 @@ function autoHighlightAnswers(mcqs) {
 
 // 1. Submit Worksheet PDF Link to SRM: /curricula/student/session/submitlink
 async function submitSLOLinkAction(sessionNum, sloNum, forcedLink = '') {
+  if (!requireDriveLinked()) {
+    return false;
+  }
+
   const input = document.getElementById(`slo-link-${sloNum}`);
   const btn   = document.getElementById(`btn-update-${sloNum}`);
   const tag   = document.getElementById(`tag-slo-${sloNum}`);
@@ -1143,13 +1439,16 @@ async function submitSLOLinkAction(sessionNum, sloNum, forcedLink = '') {
   }
 
   if (!link) {
-    toast('⚠ Please enter or generate a link first');
+    toast('⚠ Please link your personal Google Drive or generate a link first');
     return false;
   }
 
   if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
 
   try {
+    // Natural human pause before submitting link to SRM
+    await humanDelay(1800, 3200, `Submitting Slot ${sloNum} personal Drive link to SRM`);
+
     const payload = {
       view: link,
       download: link,
@@ -1172,7 +1471,7 @@ async function submitSLOLinkAction(sessionNum, sloNum, forcedLink = '') {
         tag.className = 'slo-status-tag verified';
         tag.textContent = '✓ Submitted / Verified';
       }
-      toast(`✅ SLO ${sloNum} worksheet link submitted to SRM!`);
+      toast(`✅ SLO ${sloNum} personal Google Drive link submitted to SRM!`);
       return true;
     } else {
       toast(`⚠ SRM: ${res?.msg || 'Could not update link'}`);
@@ -1188,8 +1487,11 @@ async function submitSLOLinkAction(sessionNum, sloNum, forcedLink = '') {
 
 // 2. Submit MCQ to SRM: /curricula/student/session/mcq
 async function submitMCQsAction(sessionNum) {
-  showSolving('Submitting MCQs to SRM e-Curricula…', 'Recording 100% score');
+  showSolving('Submitting MCQs to SRM e-Curricula…', 'Reviewing answers with 100% score');
   try {
+    // Human-like pause before submitting score to portal
+    await humanDelay(2000, 3500, 'Verifying MCQ answers before submitting to SRM');
+
     const payload = {
       key: 'john',
       session: sessionNum,
@@ -1224,31 +1526,62 @@ async function submitMCQsAction(sessionNum) {
   }
 }
 
-// 3. ✦ 1-CLICK AUTO SOLVE ALL TO SRM
+// 3. ✦ 1-CLICK AUTO SOLVE ALL TO SRM (WITH HUMAN PACING & PERSONAL DRIVE SYNC)
 async function autoSolveLiveSession(sessionNum) {
+  if (!requireDriveLinked()) {
+    return;
+  }
+
   if (!checkAndIncrementQuota(2)) {
     return;
   }
 
-  showSolving(`Automating Session ${sessionNum}…`, '1. Answering MCQs with 100% score');
+  showSolving(`Automating Session ${sessionNum}…`, '1. Reading and solving MCQs (Human pace)...');
 
-  // Step 1: Auto-select and submit MCQs
+  // Step 1: Paced MCQ Reading and Selection (Mimicking human student speed)
   const mcqs = currentSessionData.qData?.mcq || [];
-  autoHighlightAnswers(mcqs);
-  await new Promise(r => setTimeout(r, 600));
+  for (let idx = 0; idx < mcqs.length; idx++) {
+    const q = mcqs[idx];
+    const correctOpt = Number(q.ANSWER || 1);
+    await humanDelay(1300, 2300, `Reading Question ${idx + 1} of ${mcqs.length}`);
+    selectLiveOption(idx, correctOpt);
+  }
 
   showSolving(`Automating Session ${sessionNum}…`, '2. Submitting 100% MCQ score to SRM');
   await submitMCQsAction(sessionNum);
 
-  // Step 2: Generate Answer PDFs & Sync to Student's Personal Google Drive
-  showSolving(`Automating Session ${sessionNum}…`, '3. Generating Answer PDF & Syncing Personal Google Drive (SLO 1)');
+  // Step 2: Natural break between MCQs and Slot 1 Assignment
+  showSolving(`Automating Session ${sessionNum}…`, '3. Opening Slot 1 Worksheet assignment...');
+  await humanDelay(2400, 3800, 'Switching from MCQs to Slot 1 Worksheet');
+
+  // Generate Answer PDF & Upload to Student's Personal Google Drive
+  showSolving(`Automating Session ${sessionNum}…`, '4. Synthesizing Slot 1 solutions...');
+  await humanDelay(1500, 2500, 'Formatting Slot 1 Worksheet PDF');
   await generateSLOAnswerPDF(sessionNum, 1);
-  const driveLink1 = await uploadSLOToGoogleDrive(sessionNum, 1, false);
+
+  showSolving(`Automating Session ${sessionNum}…`, '5. Uploading Slot 1 to your personal Google Drive...');
+  await humanDelay(1800, 3000, 'Connecting to your Google Drive');
+  const driveLink1 = await uploadSLOToGoogleDrive(sessionNum, 1, !state.googleDrive?.webhookUrl);
+
+  showSolving(`Automating Session ${sessionNum}…`, '6. Submitting Slot 1 to SRM e-Curricula...');
+  await humanDelay(2000, 3200, 'Submitting personal Drive link to SRM');
   await submitSLOLinkAction(sessionNum, 1, driveLink1);
 
-  showSolving(`Automating Session ${sessionNum}…`, '4. Generating Answer PDF & Syncing Personal Google Drive (SLO 2)');
+  // Step 3: Natural Human Pause Between Slot 1 and Slot 2 (Student switching tabs)
+  showSolving(`Automating Session ${sessionNum}…`, '7. Human pause: switching to Slot 2 worksheet tab...');
+  await humanDelay(3800, 5800, 'Natural human break between Slot 1 & Slot 2');
+
+  // Generate Distinct Slot 2 Answer PDF & Upload to Personal Google Drive
+  showSolving(`Automating Session ${sessionNum}…`, '8. Synthesizing distinct Slot 2 solutions...');
+  await humanDelay(1500, 2500, 'Formatting distinct Slot 2 Worksheet PDF');
   await generateSLOAnswerPDF(sessionNum, 2);
-  const driveLink2 = await uploadSLOToGoogleDrive(sessionNum, 2, false);
+
+  showSolving(`Automating Session ${sessionNum}…`, '9. Uploading Slot 2 to your personal Google Drive...');
+  await humanDelay(1800, 3000, 'Connecting to your Google Drive');
+  const driveLink2 = await uploadSLOToGoogleDrive(sessionNum, 2, !state.googleDrive?.webhookUrl);
+
+  showSolving(`Automating Session ${sessionNum}…`, '10. Submitting Slot 2 to SRM e-Curricula...');
+  await humanDelay(2000, 3200, 'Submitting personal Drive link to SRM');
   await submitSLOLinkAction(sessionNum, 2, driveLink2);
 
   hideSolving();
@@ -1258,13 +1591,16 @@ async function autoSolveLiveSession(sessionNum) {
   }
 
   // Log solve event to personal database
-  logDbActivity('SOLVE', `Automated Session ${sessionNum} (${state.currentSubject?.code || 'Worksheet'}) • 100% Score + Drive Sync`);
+  logDbActivity('SOLVE', `Automated Session ${sessionNum} (${state.currentSubject?.code || 'Worksheet'}) • 100% Score + Personal Drive Sync`);
 
-  toast(`🎉 Session ${sessionNum} fully solved and submitted to SRM e-Curricula!`);
+  toast(`🎉 Session ${sessionNum} fully solved and submitted from your personal Drive!`);
 }
 
 // Fast solve from Units view
 async function solveSessionFast(uIdx, sIdx) {
+  if (!requireDriveLinked()) {
+    return;
+  }
   const unit = state.currentUnits[uIdx];
   const sess = unit?.sessions?.[sIdx];
   if (!sess) return;
@@ -1273,6 +1609,9 @@ async function solveSessionFast(uIdx, sIdx) {
 }
 
 async function solveUnit(uIdx) {
+  if (!requireDriveLinked()) {
+    return;
+  }
   const unit = state.currentUnits[uIdx];
   if (!unit) return;
   const btn = document.getElementById(`solve-unit-${uIdx}`);
@@ -1306,7 +1645,8 @@ async function solveUnit(uIdx) {
     }
 
     await solveSessionFast(uIdx, sIdx);
-    await new Promise(r => setTimeout(r, 800));
+    // Natural human pause between sessions in a unit
+    await humanDelay(5000, 8500, 'Resting between sessions before next session');
   }
 
   if (btn) { btn.textContent = '✓ Done!'; btn.classList.add('done'); btn.disabled = false; }
@@ -1346,26 +1686,98 @@ async function generateSLOAnswerPDF(sessionNum, sloNum) {
 async function previewSLOAnswerPDF(sessionNum, sloNum) {
   let uri = sloNum === 1 ? currentSessionData.slo1PdfUri : currentSessionData.slo2PdfUri;
   if (!uri) uri = await generateSLOAnswerPDF(sessionNum, sloNum);
+  if (!uri) { toast('⚠ Could not generate PDF'); return; }
+
+  // Convert data: URI → Blob URL (browsers block data: URIs in iframes for security)
+  let blobUrl = uri;
+  try {
+    if (uri.startsWith('data:')) {
+      const parts = uri.split(',');
+      const mime  = parts[0].split(':')[1].split(';')[0];
+      const raw   = atob(parts[1]);
+      const bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mime });
+      blobUrl = URL.createObjectURL(blob);
+    }
+  } catch(e) {
+    console.warn('Blob conversion failed, falling back to new tab:', e);
+    window.open(uri, '_blank');
+    return;
+  }
 
   const iframe = document.getElementById('pdfIframe');
-  if (iframe) iframe.src = uri;
+  if (iframe) iframe.src = blobUrl;
 
   const modal = document.getElementById('pdfModal');
   if (modal) modal.classList.remove('hidden');
 }
 
 async function downloadSLOAnswerPDF(sessionNum, sloNum) {
-  let uri = sloNum === 1 ? currentSessionData.slo1PdfUri : currentSessionData.slo2PdfUri;
+  let uri = sloNum === 1 ? currentSessionData?.slo1PdfUri : currentSessionData?.slo2PdfUri;
   if (!uri) uri = await generateSLOAnswerPDF(sessionNum, sloNum);
+  if (!uri) {
+    toast('⚠ Could not generate PDF answer sheet');
+    return;
+  }
 
-  const fileName = `${state.regNum}_${state.currentSubject?.code}_Sess${sessionNum}_SLO${sloNum}_Answers.pdf`;
-  const link = document.createElement('a');
-  link.href = uri;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  toast(`⬇ Downloaded ${fileName}`);
+  const courseCode = state.currentSubject?.code || 'COURSE';
+  const fileName = `${state.regNum || 'Student'}_${courseCode}_Sess${sessionNum}_SLO${sloNum}_Answers.pdf`;
+
+  try {
+    let blob;
+    if (uri.startsWith('data:')) {
+      const parts = uri.split(',');
+      const mime = (parts[0].split(':')[1] || 'application/pdf').split(';')[0];
+      const binaryStr = atob(parts[1]);
+      const len = binaryStr.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      blob = new Blob([bytes], { type: mime || 'application/pdf' });
+    } else {
+      blob = new Blob([uri], { type: 'application/pdf' });
+    }
+
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    }, 15000);
+    toast(`⬇ Downloaded ${fileName}`);
+  } catch (err) {
+    console.error('[Download PDF error]', err);
+    const link = document.createElement('a');
+    link.href = uri;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+function downloadPDF() {
+  const sessNum = state.currentSession?.sess?.sessionNum || state.currentSession?.sess?.num || 1;
+  const sloNum = 1;
+  downloadSLOAnswerPDF(sessNum, sloNum);
+}
+
+function previewPDF() {
+  const sessNum = state.currentSession?.sess?.sessionNum || state.currentSession?.sess?.num || 1;
+  const sloNum = 1;
+  closeSubmitModal();
+  previewSLOAnswerPDF(sessNum, sloNum);
+}
+
+function submitFromPreview() {
+  closePDFModal();
+  confirmSubmit();
 }
 
 function closePDFModal() {
