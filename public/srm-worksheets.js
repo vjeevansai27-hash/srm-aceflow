@@ -42,6 +42,22 @@ function cleanHtmlForPdf(html) {
     .replace(/[\u2013\u2014]/g, ' - ')
     .replace(/[\u2022\u25CF\u25AA\u2023]/g, '- ')
     .replace(/[\u2026]/g, '...')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<li[^>]*>/gi, ' - ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'")
+    .replace(/➔|→/g, ' -> ')
+    .replace(/✓|✔/g, '[v] ')
+    .replace(/•|·/g, '- ')
     .replace(/[^\x00-\x7F]/g, ' ')
     .replace(/\r/g, '')
     .replace(/[ \t]+\n/g, '\n')
@@ -54,31 +70,43 @@ function decodeHtmlEntities(str) {
   return cleanHtmlForPdf(str);
 }
 
-function drawStudentHeaderTable(doc, M, y, contentW, studentName, regNum, branch, dateStr) {
-  const tableH = 18;
-  doc.setDrawColor(203, 213, 225);
-  doc.setLineWidth(0.3);
-  doc.rect(M, y, contentW, tableH);
-  doc.line(M + (contentW / 2), y, M + (contentW / 2), y + tableH);
-  doc.line(M, y + 7, M + contentW, y + 7);
+function drawStudentHeaderTable(doc, M, y, contentW, studentName, regNum, branch, dateStr, courseCode, courseName) {
+  const tableH = 22;
+  const colW = contentW / 2;
 
-  doc.setFontSize(8);
+  // Background tint for academic aesthetic
+  doc.setFillColor(248, 250, 252);
+  doc.rect(M, y, contentW, tableH, 'F');
+
+  // Outer border
+  doc.setDrawColor(148, 163, 184);
+  doc.setLineWidth(0.35);
+  doc.rect(M, y, contentW, tableH);
+
+  // Vertical center divider
+  doc.line(M + colW, y, M + colW, y + tableH);
+  // Horizontal divider
+  doc.line(M, y + 11, M + contentW, y + 11);
+
+  doc.setFontSize(7.5);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(51, 65, 85);
-  doc.text('Name', M + 3, y + 5);
-  doc.text('Reg. No.', M + (contentW / 2) + 3, y + 5);
-  doc.text('Branch', M + 3, y + 11.5);
-  doc.text('Date', M + (contentW / 2) + 3, y + 11.5);
+  doc.setTextColor(71, 85, 105);
+  doc.text('CANDIDATE NAME:', M + 3, y + 4.8);
+  doc.text('REGISTER NUMBER:', M + colW + 3, y + 4.8);
+  doc.text('DEGREE / BRANCH:', M + 3, y + 15.8);
+  doc.text('DATE OF SUBMISSION:', M + colW + 3, y + 15.8);
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  const nameLines = doc.splitTextToSize((studentName || 'Student').toUpperCase(), colW - 35);
+  doc.text(nameLines, M + 30, y + 4.8);
+  doc.text(String(regNum || '').toUpperCase(), M + colW + 36, y + 4.8);
 
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(15, 23, 42);
-  const nameLines = doc.splitTextToSize(studentName || 'Student', (contentW / 2) - 26);
-  doc.text(nameLines, M + 22, y + 5);
-  doc.text(String(regNum || ''), M + (contentW / 2) + 24, y + 5);
-
-  const branchLines = doc.splitTextToSize(branch || 'Engineering', (contentW / 2) - 26);
-  doc.text(branchLines, M + 22, y + 11);
-  doc.text(String(dateStr || ''), M + (contentW / 2) + 24, y + 11.5);
+  const branchLines = doc.splitTextToSize(branch || 'Computer Science & Engineering', colW - 35);
+  doc.text(branchLines, M + 30, y + 15.8);
+  doc.text(String(dateStr || ''), M + colW + 36, y + 15.8);
 
   return y + tableH + 6;
 }
@@ -784,7 +812,63 @@ function getSessionWorksheetData(sessionNum, sloNum, currentSessionData, state) 
 }
 
 // ═════════════════════════════════════════════════════════════════════
-// 1. SOLVED ANSWER PDF BUILDER (FULL WORKSHEET WITH ALL SECTIONS)
+// REALISTIC ACADEMIC STUDENT ANSWER GENERATOR (ZERO AI WATERMARKS)
+// ═════════════════════════════════════════════════════════════════════
+function generateAnswerForSubject(questionDesc, courseCode, topic, slo) {
+  const q = (questionDesc || '').toLowerCase();
+  const c = (courseCode || '').toUpperCase();
+
+  if (c.includes('LEM202') || q.includes('natural acceptance') || q.includes('harmony') || q.includes('sukh') || q.includes('suvidha') || q.includes('sanskar')) {
+    if (q.includes('natural acceptance') || q.includes('proposal')) {
+      return "Natural acceptance is the innate human faculty to understand what is naturally agreeable and unconditionally acceptable without external enforcement.\n\nKey characteristics:\n1. Invariant with time, place, and individual.\n2. Guided by mutual happiness and mutual prosperity rather than sensory pleasure or social conditioning.\n3. Serves as the self-verifying anchor for all desires, thoughts, and expectations (imagination) within the Self ('I').";
+    }
+    if (q.includes('sukh') || q.includes('suvidha') || q.includes('happiness') || q.includes('physical facility')) {
+      return "Happiness (Sukh) is a state of harmony and synergy in the Self ('I'), which is qualitative and continuous. Physical Facility (Suvidha) pertains to the body, which is material, quantitative, and limited in time.\n\nPriority Order:\n1. Right Understanding in the Self (ensures resolution).\n2. Relationship with human beings (ensures mutual happiness).\n3. Physical Facility with rest of nature (ensures mutual prosperity).";
+    }
+    if (q.includes('animal') || q.includes('human consciousness')) {
+      return "Animal Consciousness implies living solely for physical facilities and sensory gratification (food, shelter, fear, survival). For animals, physical facilities are necessary and complete.\n\nHuman Consciousness means recognizing all three requirements in proper priority: 1st Right Understanding, 2nd Relationship, and 3rd Physical Facility, ensuring harmony at all four levels of living.";
+    }
+    return "The concept focuses on alignment between intention (natural acceptance) and competence. Human values demand continuous self-exploration where proposals are verified on the basis of natural acceptance. This leads to harmony in the self, mutual happiness in relationships, and sustainable interaction with the environment.";
+  }
+
+  if (c.includes('CSC202') || q.includes('process') || q.includes('deadlock') || q.includes('scheduling') || q.includes('paging') || q.includes('thread') || q.includes('kernel')) {
+    if (q.includes('deadlock')) {
+      return "Deadlock is a condition where a set of processes are permanently blocked because each process holds a resource and waits for another resource held by another process in the set.\n\nFour Necessary Conditions:\n1. Mutual Exclusion: At least one resource is held in a non-shareable mode.\n2. Hold and Wait: A process holds resources while requesting additional ones.\n3. No Preemption: Resources cannot be forcibly revoked.\n4. Circular Wait: A closed chain of processes exists where each process waits for a resource held by the next.";
+    }
+    if (q.includes('process') && (q.includes('thread') || q.includes('difference'))) {
+      return "Difference between Process and Thread:\n- Process: An executing program instance with independent address space, memory map, and OS descriptors. High context switching overhead.\n- Thread: A lightweight execution entity within a process sharing code, data, and open files, but maintaining its own Program Counter, register set, and stack.";
+    }
+    if (q.includes('scheduling') || q.includes('cpu')) {
+      return "CPU scheduling assigns ready processes to CPU cores:\n1. FCFS: Non-preemptive FIFO queue; simple but suffers from convoy effect.\n2. SJF / SRTF: Shortest next CPU burst; optimal average wait time.\n3. Round Robin: Preemptive with fixed time quantum; optimal for interactive timesharing.\n4. Priority Scheduling: High-priority tasks executed first; starvation alleviated via aging.";
+    }
+    return "The system component coordinates hardware resource abstraction, concurrency control, and protection mechanisms. By implementing appropriate scheduling policies and memory management primitives, the operating system ensures optimal throughput, minimal turnaround latency, and strong process isolation.";
+  }
+
+  if (c.includes('CSC201') || q.includes('tree') || q.includes('graph') || q.includes('stack') || q.includes('queue') || q.includes('sort') || q.includes('complexity') || q.includes('linked list')) {
+    if (q.includes('binary search tree') || q.includes('bst')) {
+      return "A Binary Search Tree (BST) is a hierarchical node structure satisfying the BST invariant:\n- All keys in the left subtree are strictly less than the node key.\n- All keys in the right subtree are strictly greater than the node key.\n- Both subtrees are also binary search trees.\nTime Complexity: Average search, insertion, and deletion O(log n); worst case O(n) for degenerate trees.";
+    }
+    if (q.includes('stack') || q.includes('queue')) {
+      return "Stack vs Queue:\n- Stack: Operates on LIFO (Last In First Out) principle using push() and pop() in O(1) time. Used in function recursion, expression evaluation, and undo stacks.\n- Queue: Operates on FIFO (First In First Out) principle using enqueue() and dequeue() in O(1) time. Used in CPU scheduling, BFS traversal, and buffer caches.";
+    }
+    return "Data structures provide organized methods for memory representation and algorithmic manipulation. Analysis of operational complexities (time and space complexity using Big-O notation) ensures optimal selection for real-time computational tasks and memory-constrained execution.";
+  }
+
+  if (c.includes('CSC203') || q.includes('java') || q.includes('jdbc') || q.includes('interface') || q.includes('collection') || q.includes('exception') || q.includes('stream')) {
+    if (q.includes('jdbc') || q.includes('database')) {
+      return "JDBC Architecture components:\n1. DriverManager: Locates and loads vendor-specific database drivers.\n2. Connection: Establishes a communication channel to the database session.\n3. PreparedStatement: Precompiles SQL statements, increasing execution performance and preventing SQL injection.\n4. ResultSet: Represents the tabular data cursor resulting from query execution.";
+    }
+    if (q.includes('interface') || q.includes('abstract')) {
+      return "Abstract Class vs Interface in Java:\n- Abstract Class: May define member state, constructors, and non-abstract methods. Supports single inheritance.\n- Interface: Pure behavioral contract with static/default methods. A class can implement multiple interfaces, achieving polymorphic multi-typing.";
+    }
+    return "Modern Java application development leverages strong typing, object encapsulation, and modular design. Through standard API libraries and established design patterns, applications achieve reliable resource life-cycle management, thread safety, and maintainable enterprise service integration.";
+  }
+
+  return "1. Core Definition & Theory:\nThe concept provides structured procedural execution and systematic resource handling within the course syllabus.\n\n2. Key Operational Aspects:\n- Specification of parameters and baseline conditions.\n- Structural workflow adhering to standard engineering paradigms.\n- Validation of results against performance metrics.\n\n3. Practical Implementation:\nApplied to ensure predictable computational performance, maintainability, and standard architectural compliance.";
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// 1. SOLVED ANSWER PDF BUILDER (AUTHENTIC ACADEMIC STUDENT FORMAT)
 // ═════════════════════════════════════════════════════════════════════
 async function buildSessionAnswerPDF(sessionNum, sloNum, currentSessionData, state) {
   if (typeof window.jspdf === 'undefined') return '';
@@ -797,158 +881,180 @@ async function buildSessionAnswerPDF(sessionNum, sloNum, currentSessionData, sta
 
   const data = getSessionWorksheetData(sessionNum, sloNum, currentSessionData, state);
 
-  // Document Title Header
-  doc.setFontSize(10.5);
+  // Formal Academic University Header
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(15, 23, 42);
   doc.text('SRM INSTITUTE OF SCIENCE AND TECHNOLOGY', W / 2, y, { align: 'center' });
-  y += 5;
-
-  doc.setFontSize(9);
-  doc.text('FACULTY OF ENGINEERING AND TECHNOLOGY · SCHOOL OF COMPUTING', W / 2, y, { align: 'center' });
   y += 4.5;
 
-  doc.text(data.deptStr, W / 2, y, { align: 'center' });
-  y += 4.5;
+  doc.setFontSize(7.8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(71, 85, 105);
+  doc.text('(Deemed to be University under section 3 of UGC Act, 1956) · Kattankulathur, Chennai - 603203', W / 2, y, { align: 'center' });
+  y += 4;
 
-  doc.text(`${data.courseCode} ${data.courseName}`, W / 2, y, { align: 'center' });
-  y += 6.5;
-
-  doc.setFontSize(9.5);
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(30, 41, 59);
-  const topicLines = doc.splitTextToSize(data.subTopic || data.displayTopic, contentW);
+  doc.text('FACULTY OF ENGINEERING AND TECHNOLOGY · SCHOOL OF COMPUTING', W / 2, y, { align: 'center' });
+  y += 4;
+
+  doc.text(data.deptStr, W / 2, y, { align: 'center' });
+  y += 5;
+
+  // Crisp Academic Rules Divider
+  doc.setDrawColor(30, 41, 59);
+  doc.setLineWidth(0.6);
+  doc.line(M, y, W - M, y);
+  doc.setLineWidth(0.2);
+  doc.line(M, y + 1.2, W - M, y + 1.2);
+  y += 5.5;
+
+  // Document Title
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text('CONTINUOUS LEARNING ASSESSMENT · STUDENT WORKSHEET', W / 2, y, { align: 'center' });
+  y += 4.5;
+
+  doc.setFontSize(8.5);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(51, 65, 85);
+  doc.text(`${data.courseCode} — ${data.courseName}`, W / 2, y, { align: 'center' });
+  y += 5.5;
+
+  // Student Particulars Box
+  y = drawStudentHeaderTable(doc, M, y, contentW, data.studentName, data.regNum, data.branch, data.dateStr, data.courseCode, data.courseName);
+
+  // Session & Outcome Label
+  doc.setFontSize(8.8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  const topicLines = doc.splitTextToSize(`Session: ${data.subTopic || data.displayTopic}`, contentW);
   doc.text(topicLines, M, y);
-  y += (topicLines.length * 4.8) + 1;
+  y += (topicLines.length * 4.4) + 1;
 
-  const sloLines = doc.splitTextToSize(data.displaySlo, contentW);
+  const sloLines = doc.splitTextToSize(`Outcome: ${data.displaySlo}`, contentW);
+  doc.setTextColor(30, 41, 59);
   doc.text(sloLines, M, y);
-  y += (sloLines.length * 4.8) + 2.5;
+  y += (sloLines.length * 4.4) + 3;
 
-  // Student header table
-  y = drawStudentHeaderTable(doc, M, y, contentW, data.studentName, data.regNum, data.branch, data.dateStr);
-
-  // 1. Session Learning Outcomes
+  // 1. Session Learning Outcomes (Part A)
   if (data.learningOutcomes?.length > 0) {
-    if (y > 240) { doc.addPage(); y = 16; }
+    if (y > 235) { doc.addPage(); y = 18; }
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
-    doc.text('Session Learning Outcomes', M, y);
-    y += 4.5;
+    doc.text('PART A: KEY THEORETICAL PRINCIPLES & LEARNING OUTCOMES', M, y);
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.3);
+    doc.line(M, y + 1.5, M + contentW, y + 1.5);
+    y += 5.5;
+
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.2);
-    doc.setTextColor(51, 65, 85);
+    doc.setTextColor(30, 41, 59);
     data.learningOutcomes.forEach(lo => {
-      const loLines = doc.splitTextToSize(`•  ${cleanHtmlForPdf(lo)}`, contentW - 4);
+      const loLines = doc.splitTextToSize(`-  ${cleanHtmlForPdf(lo)}`, contentW - 4);
       doc.text(loLines, M + 2, y);
       y += (loLines.length * 4.2) + 1;
     });
-    y += 3;
+    y += 2.5;
   }
 
-  // How to Engage with this Worksheet
-  if (data.howToEngage?.length > 0) {
-    if (y > 235) { doc.addPage(); y = 16; }
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(15, 23, 42);
-    doc.text('How to Engage with this Worksheet', M, y);
-    y += 4.5;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.2);
-    doc.setTextColor(71, 85, 105);
-    data.howToEngage.forEach(he => {
-      const heLines = doc.splitTextToSize(`•  ${cleanHtmlForPdf(he)}`, contentW - 4);
-      doc.text(heLines, M + 2, y);
-      y += (heLines.length * 4.2) + 1;
-    });
-    y += 3;
-  }
-
-  // 2. Part A - Key Ideas Recap
+  // Part A Recap
   if (data.partARecap?.length > 0) {
-    if (y > 235) { doc.addPage(); y = 16; }
-    doc.setFontSize(9);
+    if (y > 235) { doc.addPage(); y = 18; }
+    doc.setFontSize(8.8);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
-    doc.text('Part A — Key Ideas (Recap)', M, y);
+    doc.text('Conceptual Summary & Core Observations:', M, y);
     y += 4.5;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.2);
-    doc.setTextColor(51, 65, 85);
+    doc.setTextColor(30, 41, 59);
     data.partARecap.forEach(recap => {
-      const rLines = doc.splitTextToSize(`•  ${cleanHtmlForPdf(recap)}`, contentW - 4);
+      const rLines = doc.splitTextToSize(`-  ${cleanHtmlForPdf(recap)}`, contentW - 4);
       doc.text(rLines, M + 2, y);
-      y += (rLines.length * 4.2) + 1.5;
+      y += (rLines.length * 4.2) + 1.2;
     });
     y += 3;
   }
 
-  // 3. Part B - In-Class Activities (Completed)
+  // 2. Part B - In-Class Activities (Completed)
   if (data.partBActivities?.length > 0) {
     data.partBActivities.forEach(act => {
-      if (y > 230) { doc.addPage(); y = 16; }
+      if (y > 230) { doc.addPage(); y = 18; }
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 23, 42);
-      doc.text(`Part B — ${act.title}`, M, y);
-      y += 4.5;
+      doc.text(`PART B: APPLIED ACTIVITY — ${cleanHtmlForPdf(act.title).toUpperCase()}`, M, y);
+      doc.setDrawColor(203, 213, 225);
+      doc.setLineWidth(0.3);
+      doc.line(M, y + 1.5, M + contentW, y + 1.5);
+      y += 5.5;
+
       if (act.desc) {
         doc.setFont('helvetica', 'italic');
         doc.setFontSize(8);
         doc.setTextColor(71, 85, 105);
-        doc.text(act.desc, M + 2, y);
-        y += 4.2;
+        doc.text(cleanHtmlForPdf(act.desc), M + 2, y);
+        y += 4.5;
       }
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.2);
       (act.items || []).forEach(it => {
-        if (y > 265) { doc.addPage(); y = 16; }
-        const itemLine = `${it.item} ➔ ${it.answer}`;
-        const iLines = doc.splitTextToSize(`✓  ${itemLine}`, contentW - 6);
+        if (y > 265) { doc.addPage(); y = 18; }
+        const itemLine = `${cleanHtmlForPdf(it.item)} : ${cleanHtmlForPdf(it.answer)}`;
+        const iLines = doc.splitTextToSize(`-  ${itemLine}`, contentW - 6);
         doc.setTextColor(30, 41, 59);
         doc.text(iLines, M + 3, y);
-        y += (iLines.length * 4.2) + 1;
+        y += (iLines.length * 4.2) + 1.2;
       });
       y += 3.5;
     });
   }
 
-  // 4. Part C - Long Answer Questions & Solved Answers
+  // 3. Part C - Technical Questions & Student Solutions
   if (data.questionsList?.length > 0) {
-    if (y > 230) { doc.addPage(); y = 16; }
-    doc.setFontSize(9.5);
+    if (y > 225) { doc.addPage(); y = 18; }
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
-    doc.text('Part C — Questions & Comprehensive Answers', M, y);
+    doc.text('PART C: TECHNICAL EVALUATION QUESTIONS & STUDENT SOLUTIONS', M, y);
     doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.3);
     doc.line(M, y + 1.5, M + contentW, y + 1.5);
     y += 6;
 
     data.questionsList.forEach((item, idx) => {
-      if (y > 240) { doc.addPage(); y = 16; }
+      if (y > 240) { doc.addPage(); y = 18; }
 
-      doc.setFontSize(9);
+      // Question
+      doc.setFontSize(8.8);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(15, 23, 42);
-      const qLines = doc.splitTextToSize(`${item.q.startsWith('Q') || item.q.startsWith('Question') ? item.q : `Question ${idx + 1}: ${item.q}`}`, contentW - 4);
+      const qText = item.q.startsWith('Q') || item.q.startsWith('Question') ? item.q : `Question ${idx + 1}: ${item.q}`;
+      const qLines = doc.splitTextToSize(cleanHtmlForPdf(qText), contentW - 4);
       doc.text(qLines, M + 2, y);
-      y += (qLines.length * 4.6) + 2.5;
+      y += (qLines.length * 4.5) + 2.5;
 
+      // Solution header
       doc.setFontSize(8.4);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(67, 56, 202);
-      doc.text('Answer:', M + 2, y);
+      doc.setTextColor(30, 41, 59);
+      doc.text('Solution / Working:', M + 2, y);
       y += 4.5;
 
+      // Solution body
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(30, 41, 59);
-      const cleanA = cleanHtmlForPdf(item.a);
+      doc.setTextColor(17, 24, 39);
+      const cleanA = cleanHtmlForPdf(item.a) || generateAnswerForSubject(item.q, data.courseCode, data.displayTopic, data.displaySlo);
       const aLines = doc.splitTextToSize(cleanA, contentW - 6);
 
       for (let i = 0; i < aLines.length; i++) {
-        if (y > 275) { doc.addPage(); y = 16; }
+        if (y > 275) { doc.addPage(); y = 18; }
         doc.text(aLines[i], M + 4, y);
         y += 4.2;
       }
@@ -956,29 +1062,62 @@ async function buildSessionAnswerPDF(sessionNum, sloNum, currentSessionData, sta
     });
   }
 
-  // 5. Self-Reflection
+  // 4. Self-Reflection
   if (data.selfReflection?.length > 0) {
-    if (y > 235) { doc.addPage(); y = 16; }
+    if (y > 230) { doc.addPage(); y = 18; }
     doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(15, 23, 42);
-    doc.text('Self-Reflection (Take-Home)', M, y);
-    y += 4.5;
+    doc.text('PART D: CRITICAL REFLECTION & PRACTICAL INFERENCES', M, y);
+    doc.setDrawColor(203, 213, 225);
+    doc.setLineWidth(0.3);
+    doc.line(M, y + 1.5, M + contentW, y + 1.5);
+    y += 5.5;
+
     data.selfReflection.forEach(sr => {
-      if (y > 260) { doc.addPage(); y = 16; }
+      if (y > 255) { doc.addPage(); y = 18; }
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8.2);
-      doc.setTextColor(51, 65, 85);
-      const qLines = doc.splitTextToSize(`Q: ${sr.q}`, contentW - 4);
+      doc.setTextColor(30, 41, 59);
+      const qLines = doc.splitTextToSize(`Q: ${cleanHtmlForPdf(sr.q)}`, contentW - 4);
       doc.text(qLines, M + 2, y);
       y += (qLines.length * 4.2) + 1.5;
 
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(30, 41, 59);
-      const aLines = doc.splitTextToSize(`A: ${sr.a}`, contentW - 6);
+      doc.setTextColor(17, 24, 39);
+      const aLines = doc.splitTextToSize(`Student Response: ${cleanHtmlForPdf(sr.a)}`, contentW - 6);
       doc.text(aLines, M + 4, y);
       y += (aLines.length * 4.2) + 3;
     });
+  }
+
+  // Running Headers & Footers on every page
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+
+    // Running Header (Page 2+)
+    if (p > 1) {
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(`SRM INSTITUTE OF SCIENCE AND TECHNOLOGY · SCHOOL OF COMPUTING · ${data.courseCode}`, M, 10);
+      doc.text(`Reg: ${data.regNum}`, W - M, 10, { align: 'right' });
+      doc.setDrawColor(226, 232, 240);
+      doc.setLineWidth(0.2);
+      doc.line(M, 12, W - M, 12);
+    }
+
+    // Running Footer (All pages)
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.2);
+    doc.line(M, 285, W - M, 285);
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Continuous Learning Assessment · ${data.courseCode} · Reg: ${data.regNum}`, M, 289);
+    doc.text(`Page ${p} of ${totalPages}`, W - M, 289, { align: 'right' });
   }
 
   const pdfUri = doc.output('datauristring');

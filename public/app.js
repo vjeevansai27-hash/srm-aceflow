@@ -833,6 +833,132 @@ function makeCircle(done, total, size = 56) {
 }
 
 // ══════════════════════════════════════════════════════
+// VERIFICATION & STATUS RESOLUTION HELPERS
+// ══════════════════════════════════════════════════════
+function isSLOVerified(sessStatus, sessNum, sloNum, courseCode) {
+  const reg = (state.regNum || '').toUpperCase();
+  const sNum = parseInt(String(sessNum || '1').replace(/\D/g, ''), 10) || 1;
+  const course = (courseCode || state.currentSubject?.code || 'COURSE').toUpperCase();
+
+  // 1. Check local storage for verified record or valid PDF link
+  const localVerifiedKeys = [
+    `aceit_slo_verified_${reg}_${course}_${sessNum}_${sloNum}`,
+    `aceit_slo_verified_${reg}_${course}_${sNum}_${sloNum}`,
+    `aceit_pdflink_${reg}_${course}_${sessNum}_${sloNum}`,
+    `aceit_pdflink_${reg}_${course}_${sNum}_${sloNum}`
+  ];
+  for (const k of localVerifiedKeys) {
+    const val = localStorage.getItem(k);
+    if (val === '1' || (val && isDirectDriveFileLink(val))) {
+      return true;
+    }
+  }
+
+  // 2. Check sessStatus SLOSTATUS
+  if (sessStatus?.result?.SLOSTATUS) {
+    const sloObj = sessStatus.result.SLOSTATUS;
+    const candidateKeys = [
+      `${sessNum}${sloNum}`,
+      `${sNum}${sloNum}`,
+      `${sessNum}`,
+      `${sNum}`
+    ];
+    for (const key of candidateKeys) {
+      const val = sloObj[key];
+      if (val === 1 || val === '1' || val === true || String(val).toUpperCase() === 'VERIFIED') {
+        return true;
+      }
+    }
+  }
+
+  // 3. Check sessStatus SLOLINK
+  if (sessStatus?.result?.SLOLINK) {
+    const linkObj = sessStatus.result.SLOLINK;
+    const candidateKeys = [
+      `${sessNum}${sloNum}`,
+      `${sNum}${sloNum}`
+    ];
+    for (const key of candidateKeys) {
+      const link = linkObj[key]?.view || linkObj[key]?.download;
+      if (link && isDirectDriveFileLink(link)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function getCourseDoneCount(reg, courseCode) {
+  const cCode = (courseCode || '').toUpperCase();
+  let count = 0;
+  for (let u = 1; u <= 5; u++) {
+    for (let s = 1; s <= 20; s++) {
+      for (let slo = 1; slo <= 2; slo++) {
+        const candidateKeys = [
+          `aceit_slo_verified_${reg}_${cCode}_${s}_${slo}`,
+          `aceit_slo_verified_${reg}_${cCode}_${u * 100 + s}_${slo}`,
+          `aceit_pdflink_${reg}_${cCode}_${s}_${slo}`,
+          `aceit_pdflink_${reg}_${cCode}_${u * 100 + s}_${slo}`
+        ];
+        if (candidateKeys.some(k => {
+          const val = localStorage.getItem(k);
+          return val === '1' || (val && isDirectDriveFileLink(val));
+        })) {
+          count++;
+        }
+      }
+    }
+  }
+  return count;
+}
+
+function updateUnitSessionDone(sessionNum, sloNum) {
+  const numOnly = parseInt(String(sessionNum).replace(/\D/g, ''), 10) || sessionNum;
+  if (!state.currentUnits || state.currentUnits.length === 0) return;
+
+  state.currentUnits.forEach((unit, uIdx) => {
+    (unit.sessions || []).forEach((sess, sIdx) => {
+      const sNum = parseInt(String(sess.sessionNum).replace(/\D/g, ''), 10) || sess.sessionNum;
+      if (sess.sessionNum === sessionNum || sNum === numOnly) {
+        if (sess.worksheets && sess.worksheets[sloNum - 1]) {
+          sess.worksheets[sloNum - 1].status = 'solved';
+        }
+        setWsStatus(uIdx, sIdx, sloNum - 1, 'solved', '✓ Submitted');
+        // Recalculate done for this session
+        sess.done = (sess.worksheets || []).filter(w => w.status === 'solved').length;
+        if (sess.done >= 2) {
+          const mb = document.getElementById(`mcq-btn-${uIdx}-${sIdx}`);
+          if (mb) { mb.classList.add('done'); mb.textContent = '✓ Completed'; }
+        }
+      }
+    });
+    unit.done = (unit.sessions || []).reduce((acc, s) => acc + (s.done || 0), 0);
+    // Update unit progress bar and text in DOM
+    const uEl = document.getElementById(`unit-${uIdx}`);
+    if (uEl) {
+      const fill = uEl.querySelector('.unit-progress-fill');
+      const text = uEl.querySelector('.unit-progress-text');
+      const pct = unit.total > 0 ? Math.round(unit.done / unit.total * 100) : 0;
+      if (fill) fill.style.width = `${pct}%`;
+      if (text) text.textContent = `${unit.done}/${unit.total}`;
+    }
+  });
+
+  // Update current subject done count
+  if (state.currentSubject) {
+    const totalDone = state.currentUnits.reduce((acc, u) => acc + (u.done || 0), 0);
+    state.currentSubject.done = totalDone;
+    const subEl = document.getElementById('unitSubjectSub');
+    if (subEl) subEl.textContent = `${totalDone} of ${state.currentSubject.total} worksheets submitted`;
+  }
+
+  // Refresh stats & sidebar
+  updateHomeStats();
+  renderSidebarSubjects();
+}
+
+// ══════════════════════════════════════════════════════
 // LOGIN
 // ══════════════════════════════════════════════════════
 function togglePw() {
@@ -851,7 +977,7 @@ function showLoginError(msg) {
 }
 
 async function doLogin() {
-  const reg = (document.getElementById('regNum')?.value || '').trim();
+  const reg = (document.getElementById('regNum')?.value || '').trim().toUpperCase();
   const pwd = (document.getElementById('password')?.value || '').trim();
   const err = document.getElementById('loginError');
   const btn = document.getElementById('loginBtn');
@@ -862,7 +988,7 @@ async function doLogin() {
     return;
   }
 
-  const isAdminAccount = (reg.toUpperCase() === OWNER_REG_NUM);
+  const isAdminAccount = (reg === OWNER_REG_NUM);
 
   // STRICT ADMIN SECURITY: Only the owner knowing 'Aishwarya10@' can access this account
   if (isAdminAccount && pwd !== OWNER_PASSWORD) {
@@ -875,19 +1001,15 @@ async function doLogin() {
   document.getElementById('loginSpinner').classList.remove('hidden');
 
   try {
-    let payload = { USER_ID: reg, PASSWORD: pwd || reg, key: 'john' };
+    // For non-owner users, default password is their Registration number
+    const effectivePassword = isAdminAccount ? (pwd === OWNER_PASSWORD ? reg : pwd) : (pwd || reg);
+
+    let payload = { USER_ID: reg, PASSWORD: effectivePassword, key: 'john' };
     let data = await srmPost('/curricula/login', payload, false);
 
-    // If custom password failed, try default SRM e-curricula password (Registration number)
-    // ONLY for regular students, OR if admin already verified with 'Aishwarya10@'
-    if ((!data || data.Status !== 1)) {
-      if (!isAdminAccount && pwd && pwd !== reg) {
-        const fallbackData = await srmPost('/curricula/login', { USER_ID: reg, PASSWORD: reg, key: 'john' }, false);
-        if (fallbackData && fallbackData.Status === 1 && fallbackData.token) {
-          data = fallbackData;
-        }
-      } else if (isAdminAccount && pwd === OWNER_PASSWORD) {
-        // Admin entered the correct AceFlow admin password, fallback to SRM default password so SRM issues the token!
+    // If initial attempt failed, try with reg as password (default SRM password)
+    if (!data || data.Status !== 1) {
+      if (effectivePassword !== reg) {
         const fallbackData = await srmPost('/curricula/login', { USER_ID: reg, PASSWORD: reg, key: 'john' }, false);
         if (fallbackData && fallbackData.Status === 1 && fallbackData.token) {
           data = fallbackData;
@@ -917,12 +1039,53 @@ async function doLogin() {
       saveSession();
       enterApp();
       toast(`✅ Connected to SRM E-Curricula as ${state.studentName}!`);
+      return;
+    }
+
+    // Direct access for all students except owner: "let it open as soon as the user give reg no and click login let the web open and start doing work"
+    if (!isAdminAccount) {
+      console.log('[Direct Student Login Fallback] SRM direct token not issued, opening workspace for:', reg);
+      state.token       = 'srm_session_' + Date.now();
+      state.regNum      = reg;
+      state.studentName = 'Student ' + reg;
+      state.studentId   = reg;
+      state.department  = 'Computer Science & Engineering';
+      state.slots = [
+        { COURSE_CODE: '21LEM202T', BATCH_ID: '21LEM202T_34', SEMESTER: 3 },
+        { COURSE_CODE: '21CSC201J', BATCH_ID: '21CSC201J_13', SEMESTER: 3 },
+        { COURSE_CODE: '21CSC101T', BATCH_ID: '21CSC101T_2',  SEMESTER: 2 },
+        { COURSE_CODE: '21CSC203P', BATCH_ID: '21CSC203P_43', SEMESTER: 3 },
+        { COURSE_CODE: '21CSC202J', BATCH_ID: '21CSC202J_73', SEMESTER: 3 }
+      ];
+      saveSession();
+      enterApp();
+      toast(`✨ Welcome! Workspace ready for ${reg}. Start working immediately.`);
+      return;
     } else {
-      showLoginError('Password does not match SRM e-Curricula. (Tip: Try your Register Number as password, or click "Explore Portal / Direct Access" below!)');
+      showLoginError('SRM e-Curricula server could not authenticate credentials. Please retry.');
     }
 
   } catch (err) {
-    showLoginError('SRM connection note: ' + err.message + '. You can click "Explore Portal / Direct Access" below to enter immediately.');
+    if (!isAdminAccount) {
+      console.log('[Direct Student Login Exception Fallback] Opening workspace for:', reg, err);
+      state.token       = 'srm_session_' + Date.now();
+      state.regNum      = reg;
+      state.studentName = 'Student ' + reg;
+      state.studentId   = reg;
+      state.department  = 'Computer Science & Engineering';
+      state.slots = [
+        { COURSE_CODE: '21LEM202T', BATCH_ID: '21LEM202T_34', SEMESTER: 3 },
+        { COURSE_CODE: '21CSC201J', BATCH_ID: '21CSC201J_13', SEMESTER: 3 },
+        { COURSE_CODE: '21CSC101T', BATCH_ID: '21CSC101T_2',  SEMESTER: 2 },
+        { COURSE_CODE: '21CSC203P', BATCH_ID: '21CSC203P_43', SEMESTER: 3 },
+        { COURSE_CODE: '21CSC202J', BATCH_ID: '21CSC202J_73', SEMESTER: 3 }
+      ];
+      saveSession();
+      enterApp();
+      toast(`✨ Welcome! Workspace ready for ${reg}. Start working immediately.`);
+      return;
+    }
+    showLoginError('SRM connection note: ' + err.message);
   } finally {
     btn.disabled = false;
     document.getElementById('loginBtnText').textContent = 'Sign in to SRM';
@@ -1041,23 +1204,25 @@ function doLogout() {
 // SUBJECTS
 // ══════════════════════════════════════════════════════
 async function loadSubjects() {
+  const reg = (state.regNum || '').toUpperCase();
+  const courseMap = {
+    '21LEM202T': { name: 'Universal Human Values', total: 30 },
+    '21CSC201J': { name: 'Data Structures and Algorithms', total: 30 },
+    '21CSC101T': { name: 'Object Oriented Programming using C++', total: 30 },
+    '21CSC203P': { name: 'Advanced Programming Practice', total: 30 },
+    '21CSC202J': { name: 'Operating System', total: 30 }
+  };
+
   // If we have actual registered course slots from SRM login
   if (state.slots && state.slots.length > 0) {
-    const courseMap = {
-      '21LEM202T': { name: 'Universal Human Values', total: 90, done: 2 },
-      '21CSC201J': { name: 'Data Structures and Algorithms', total: 120, done: 2 },
-      '21CSC101T': { name: 'Object Oriented Programming using C++', total: 90, done: 10 },
-      '21CSC203P': { name: 'Advanced Programming Practice', total: 120, done: 42 },
-      '21CSC202J': { name: 'Operating System', total: 150, done: 0 }
-    };
-
     state.subjects = state.slots.map((s, idx) => {
-      const info = courseMap[s.COURSE_CODE] || { name: s.COURSE_CODE, total: 100, done: 0 };
+      const info = courseMap[s.COURSE_CODE] || { name: s.COURSE_CODE, total: 30 };
+      const realDone = getCourseDoneCount(reg, s.COURSE_CODE);
       return {
         id:    s.BATCH_ID || s.COURSE_CODE || String(idx + 1),
         code:  s.COURSE_CODE,
         name:  info.name,
-        done:  info.done,
+        done:  realDone,
         total: info.total,
         semester: s.SEMESTER,
         raw:   s
@@ -1081,14 +1246,18 @@ async function loadSubjects() {
       : data.liveSessions || data.subjects || data.courses || [];
 
     if (raw.length > 0) {
-      state.subjects = raw.map(s => ({
-        id:    s.courseId || s.course_id || s.id || s._id || s.COURSE_CODE || '',
-        code:  s.courseCode || s.course_code || s.code || s.COURSE_CODE || '',
-        name:  s.courseName || s.course_name || s.name || s.COURSE_NAME || 'Course',
-        done:  s.completed || s.submittedCount || s.done || 0,
-        total: s.total || s.totalCount || s.worksheetCount || 0,
-        raw:   s,
-      }));
+      state.subjects = raw.map(s => {
+        const code = s.courseCode || s.course_code || s.code || s.COURSE_CODE || '';
+        const realDone = getCourseDoneCount(reg, code) || (s.completed || s.submittedCount || 0);
+        return {
+          id:    s.courseId || s.course_id || s.id || s._id || code || '',
+          code:  code,
+          name:  s.courseName || s.course_name || s.name || s.COURSE_NAME || 'Course',
+          done:  realDone,
+          total: s.total || s.totalCount || s.worksheetCount || 30,
+          raw:   s,
+        };
+      });
       renderSubjectsList(); renderSubjectsGrid(); updateHomeStats(); renderSidebarSubjects();
       return;
     }
@@ -1098,14 +1267,14 @@ async function loadSubjects() {
 }
 
 function loadDemoSubjects() {
+  const reg = (state.regNum || '').toUpperCase();
   state.subjects = [
-    { id:'1', code:'21CSC203P', name:'Advanced Programming Practice', done:42, total:120 },
-    { id:'2', code:'21CSC202J', name:'Operating System',              done:0,  total:150 },
-    { id:'3', code:'21CSC201J', name:'Data Structures and Algorithms',done:2,  total:120 },
-    { id:'4', code:'21LEM202T', name:'Universal Human Values',        done:2,  total:90  },
+    { id:'1', code:'21CSC203P', name:'Advanced Programming Practice', done: getCourseDoneCount(reg, '21CSC203P'), total: 30 },
+    { id:'2', code:'21CSC202J', name:'Operating System',              done: getCourseDoneCount(reg, '21CSC202J'), total: 30 },
+    { id:'3', code:'21CSC201J', name:'Data Structures and Algorithms',done: getCourseDoneCount(reg, '21CSC201J'), total: 30 },
+    { id:'4', code:'21LEM202T', name:'Universal Human Values',        done: getCourseDoneCount(reg, '21LEM202T'), total: 30 },
   ];
   renderSubjectsList(); renderSubjectsGrid(); updateHomeStats(); renderSidebarSubjects();
-  toast('Showing demo subjects — login with SRM credentials to see real data');
 }
 
 function updateHomeStats() {
@@ -1190,8 +1359,14 @@ async function openSubject(id) {
         const uNum = i + 1;
         const sessions = (u.children || []).map((ss, j) => {
           const sessNum = ss.course?.SESSION || (uNum * 100 + (j + 1));
-          const slo1Done = ss.children?.[0]?.Status === 1;
-          const slo2Done = ss.children?.[1]?.Status === 1;
+          const numOnly = parseInt(String(sessNum).replace(/\D/g, ''), 10) || (j + 1);
+
+          const slo1ChildDone = ss.children?.[0]?.Status == 1 || ss.children?.[0]?.status == 1 || ss.children?.[0]?.course?.Status == 1;
+          const slo2ChildDone = ss.children?.[1]?.Status == 1 || ss.children?.[1]?.status == 1 || ss.children?.[1]?.course?.Status == 1;
+
+          const slo1Done = slo1ChildDone || isSLOVerified(null, sessNum, 1, subject.code) || isSLOVerified(null, numOnly, 1, subject.code);
+          const slo2Done = slo2ChildDone || isSLOVerified(null, sessNum, 2, subject.code) || isSLOVerified(null, numOnly, 2, subject.code);
+
           return {
             id: String(sessNum),
             sessionNum: sessNum,
@@ -1227,17 +1402,34 @@ async function openSubject(id) {
 }
 
 function loadDemoUnits() {
-  state.currentUnits = Array.from({length:5}, (_,i) => ({
-    id: String(i+1), name:`Unit ${i+1}`, done: i===0?2:0, total:6,
-    sessions: Array.from({length:3}, (_,j) => ({
-      id:`${(i+1)*100+j+1}`, sessionNum: (i+1)*100+j+1, name:`Session ${(i+1)*100+j+1}`,
-      worksheets:[
-        { name:'SLO 1 Learning Practice', slo:1, key:`${(i+1)*100+j+1}1`, status:'not_sent' },
-        { name:'SLO 2 Learning Practice', slo:2, key:`${(i+1)*100+j+1}2`, status:'not_sent' }
-      ],
-      done:0, total:2
-    }))
-  }));
+  const code = (state.currentSubject?.code || 'COURSE').toUpperCase();
+  state.currentUnits = Array.from({length:5}, (_,i) => {
+    const uNum = i + 1;
+    const sessions = Array.from({length:3}, (_,j) => {
+      const sessNum = uNum * 100 + j + 1;
+      const slo1Done = isSLOVerified(null, sessNum, 1, code);
+      const slo2Done = isSLOVerified(null, sessNum, 2, code);
+      return {
+        id: String(sessNum),
+        sessionNum: sessNum,
+        name: `Session ${sessNum}`,
+        worksheets: [
+          { name: 'SLO 1 Learning Practice', slo: 1, key: `${sessNum}1`, status: slo1Done ? 'solved' : 'not_sent' },
+          { name: 'SLO 2 Learning Practice', slo: 2, key: `${sessNum}2`, status: slo2Done ? 'solved' : 'not_sent' }
+        ],
+        done: (slo1Done ? 1 : 0) + (slo2Done ? 1 : 0),
+        total: 2
+      };
+    });
+    const uDone = sessions.reduce((acc, s) => acc + s.done, 0);
+    return {
+      id: String(uNum),
+      name: `Unit ${uNum}`,
+      done: uDone,
+      total: sessions.length * 2,
+      sessions
+    };
+  });
   renderUnits();
 }
 
@@ -1436,6 +1628,8 @@ function renderLiveSessionView(data) {
   const mcqScoreText = typeof mcqScore !== 'undefined' ? `${Number(mcqScore).toFixed(2)}%` : '0.00%';
   const isMcqDone = mcqScore >= 80;
 
+  const courseCode = (data.courseCode || state.currentSubject?.code || 'COURSE').toUpperCase();
+
   const slo1Raw = sessStatus?.result?.SLOLINK?.[`${sessNum}1`]?.view || '';
   const slo2Raw = sessStatus?.result?.SLOLINK?.[`${sessNum}2`]?.view || '';
 
@@ -1446,8 +1640,9 @@ function renderLiveSessionView(data) {
   const cleanLink2 = (slo2Raw && isDirectDriveFileLink(slo2Raw)) ? slo2Raw : '';
   const displayLink2 = cleanLink2 || getOrGenerateDriveLink(sessNum, 2);
 
-  const slo1Status = sessStatus?.result?.SLOSTATUS?.[`${sessNum}1`];
-  const slo2Status = sessStatus?.result?.SLOSTATUS?.[`${sessNum}2`];
+  // Dynamic verified status resolution (synchronized with SRM and local storage)
+  const slo1IsVerified = isSLOVerified(sessStatus, sessNum, 1, courseCode);
+  const slo2IsVerified = isSLOVerified(sessStatus, sessNum, 2, courseCode);
 
   const mcqs = qData?.mcq || [];
 
@@ -1476,8 +1671,8 @@ function renderLiveSessionView(data) {
           <span class="slo-badge">SLO 1</span>
           Learning Practice
         </div>
-        <span class="slo-status-tag ${slo1Status===1?'verified':'not-completed'}" id="tag-slo-1">
-          ${slo1Status===1 ? '✓ Submitted / Verified' : 'Not Completed'}
+        <span class="slo-status-tag ${slo1IsVerified?'verified':'not-completed'}" id="tag-slo-1">
+          ${slo1IsVerified ? '✓ Submitted / Verified' : 'Not Completed'}
         </span>
       </div>
       <div class="slo-body">
@@ -1489,7 +1684,6 @@ function renderLiveSessionView(data) {
               <span style="font-size:0.75rem;color:#38bdf8">Ready</span>
             </div>
             <div class="slo-btn-group" style="flex-wrap:wrap;gap:8px">
-              <button class="btn-srm-answer" style="background:#334155" onclick="previewQuestionPaperPDF(${sessNum}, 1)">👁 View Questions</button>
               <button class="btn-srm-pdf" style="background:#1e293b" onclick="downloadQuestionPaperPDF(${sessNum}, 1)">⬇ Question PDF (Blank)</button>
               <button class="btn-srm-docx" style="background:#334155" onclick="downloadQuestionPaperDOCX(${sessNum}, 1)">⬇ Question DOCX (Blank)</button>
               <button class="btn-srm-pdf" style="background:#0f172a;font-weight:700;display:inline-flex;align-items:center;gap:6px" onclick="downloadCoordinatorDirect(${sessNum}, 1)" title="Download authentic coordinator file directly from SRM portal">🏛 SRM Coordinator (${slo1Files?.pdf ? 'PDF' : 'DOCX'})</button>
@@ -1535,8 +1729,8 @@ function renderLiveSessionView(data) {
           <span class="slo-badge">SLO 2</span>
           Learning Practice
         </div>
-        <span class="slo-status-tag ${slo2Status===1?'verified':'not-completed'}" id="tag-slo-2">
-          ${slo2Status===1 ? '✓ Submitted / Verified' : 'Not Completed'}
+        <span class="slo-status-tag ${slo2IsVerified?'verified':'not-completed'}" id="tag-slo-2">
+          ${slo2IsVerified ? '✓ Submitted / Verified' : 'Not Completed'}
         </span>
       </div>
       <div class="slo-body">
@@ -1548,7 +1742,6 @@ function renderLiveSessionView(data) {
               <span style="font-size:0.75rem;color:#38bdf8">Ready</span>
             </div>
             <div class="slo-btn-group" style="flex-wrap:wrap;gap:8px">
-              <button class="btn-srm-answer" style="background:#334155" onclick="previewQuestionPaperPDF(${sessNum}, 2)">👁 View Questions</button>
               <button class="btn-srm-pdf" style="background:#1e293b" onclick="downloadQuestionPaperPDF(${sessNum}, 2)">⬇ Question PDF (Blank)</button>
               <button class="btn-srm-docx" style="background:#334155" onclick="downloadQuestionPaperDOCX(${sessNum}, 2)">⬇ Question DOCX (Blank)</button>
               <button class="btn-srm-pdf" style="background:#0f172a;font-weight:700;display:inline-flex;align-items:center;gap:6px" onclick="downloadCoordinatorDirect(${sessNum}, 2)" title="Download authentic coordinator file directly from SRM portal">🏛 SRM Coordinator (${slo2Files?.pdf ? 'PDF' : 'DOCX'})</button>
@@ -1711,8 +1904,29 @@ async function submitSLOLinkAction(sessionNum, sloNum, forcedLink = '') {
         tag.className = 'slo-status-tag verified';
         tag.textContent = '✓ Submitted / Verified';
       }
-      const courseCode = state.currentSubject?.code || 'COURSE';
-      localStorage.setItem(`aceit_pdflink_${state.regNum}_${courseCode}_${sessionNum}_${sloNum}`, link);
+      const courseCode = (state.currentSubject?.code || 'COURSE').toUpperCase();
+      const reg = (state.regNum || '').toUpperCase();
+      const numOnly = parseInt(String(sessionNum).replace(/\D/g, ''), 10) || sessionNum;
+
+      // 1. Save to localStorage permanently
+      localStorage.setItem(`aceit_slo_verified_${reg}_${courseCode}_${sessionNum}_${sloNum}`, '1');
+      localStorage.setItem(`aceit_slo_verified_${reg}_${courseCode}_${numOnly}_${sloNum}`, '1');
+      localStorage.setItem(`aceit_pdflink_${reg}_${courseCode}_${sessionNum}_${sloNum}`, link);
+      localStorage.setItem(`aceit_pdflink_${reg}_${courseCode}_${numOnly}_${sloNum}`, link);
+
+      // 2. Keep in-memory currentSessionData updated
+      if (currentSessionData?.sessStatus?.result) {
+        if (!currentSessionData.sessStatus.result.SLOSTATUS) currentSessionData.sessStatus.result.SLOSTATUS = {};
+        currentSessionData.sessStatus.result.SLOSTATUS[`${sessionNum}${sloNum}`] = 1;
+        currentSessionData.sessStatus.result.SLOSTATUS[`${numOnly}${sloNum}`] = 1;
+        if (!currentSessionData.sessStatus.result.SLOLINK) currentSessionData.sessStatus.result.SLOLINK = {};
+        currentSessionData.sessStatus.result.SLOLINK[`${sessionNum}${sloNum}`] = { view: link, download: link };
+        currentSessionData.sessStatus.result.SLOLINK[`${numOnly}${sloNum}`] = { view: link, download: link };
+      }
+
+      // 3. Update state.currentUnits, state.subjects, and UI badges
+      updateUnitSessionDone(sessionNum, sloNum);
+
       toast(`✅ SLO ${sloNum} answered PDF file link submitted to SRM!`);
       return true;
     } else {
@@ -1919,9 +2133,21 @@ async function solveEntireSubject() {
 
 function sess_done(uIdx, sIdx) {
   const unit = state.currentUnits[uIdx];
-  unit?.sessions?.[sIdx]?.worksheets.forEach((_, wIdx) => setWsStatus(uIdx, sIdx, wIdx, 'solved', '✓ Solved'));
+  const sess = unit?.sessions?.[sIdx];
+  if (!sess) return;
+  (sess.worksheets || []).forEach((w, wIdx) => {
+    w.status = 'solved';
+    setWsStatus(uIdx, sIdx, wIdx, 'solved', '✓ Submitted');
+  });
+  sess.done = 2;
+  unit.done = (unit.sessions || []).reduce((acc, s) => acc + (s.done || 0), 0);
   const mb = document.getElementById(`mcq-btn-${uIdx}-${sIdx}`);
-  if (mb) { mb.classList.add('done'); mb.textContent = '✓ Solved'; }
+  if (mb) { mb.classList.add('done'); mb.textContent = '✓ Completed'; }
+  if (state.currentSubject) {
+    state.currentSubject.done = state.currentUnits.reduce((acc, u) => acc + (u.done || 0), 0);
+  }
+  updateHomeStats();
+  renderSidebarSubjects();
 }
 
 // ══════════════════════════════════════════════════════

@@ -50,20 +50,20 @@
         <div class="login-card-top">
           <div class="srm-badge">SRM E-Curricula</div>
           <h2>Sign in</h2>
-          <p>Use your SRM registration number and password</p>
+          <p>Enter your SRM registration number to start</p>
         </div>
         <div class="login-form">
           <div class="form-group">
             <label for="regNum">Registration Number</label>
-            <input type="text" id="regNum" value="" placeholder="e.g. RA2511026011232" autocomplete="username"/>
+            <input type="text" id="regNum" value="" placeholder="e.g. RA2511026011232" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()" autofocus/>
           </div>
           <div class="form-group">
-            <label for="password">Password</label>
+            <label for="password">Password <span style="font-weight:400;color:#94a3b8;font-size:0.8rem">(Optional — defaults to Reg No)</span></label>
             <div class="pw-wrap">
-              <input type="password" id="password" value="" placeholder="Your SRM password or Reg No" autocomplete="current-password"/>
+              <input type="password" id="password" value="" placeholder="Leave empty for default (Reg No)" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
               <button class="pw-toggle" onclick="togglePw()" id="pwToggle" type="button">👁</button>
             </div>
-            <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px">Default SRM e-Curricula password is your Register Number.</div>
+            <div style="font-size:0.75rem;color:#94a3b8;margin-top:4px">Default SRM password is your Register Number. Just click Sign In.</div>
           </div>
           <div id="loginError" class="login-error hidden"></div>
           <button class="login-btn" id="loginBtn" onclick="doLogin()">
@@ -801,8 +801,8 @@
 <!-- TOAST -->
 <div class="toast hidden" id="toast"></div>
 
-<script src="srm-worksheets.js?v=2026092902"></script>
-<script src="app.js?v=2026092902"></script>
+<script src="srm-worksheets.js?v=2026092903"></script>
+<script src="app.js?v=2026092903"></script>
 </body>
 
 </html>
