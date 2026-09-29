@@ -1,7 +1,11 @@
 {
   "version": 2,
   "rewrites": [
+    { "source": "/api/srm-file-resolve", "destination": "/api/srm-file-resolve.js" },
+    { "source": "/api/srm-file-proxy", "destination": "/api/srm-file-proxy.js" },
     { "source": "/api/srm-proxy", "destination": "/api/srm-proxy.js" },
+    { "source": "/api/drive-upload", "destination": "/api/drive-upload.js" },
+    { "source": "/api/drive-test", "destination": "/api/drive-test.js" },
     { "source": "/api/db/:path*", "destination": "/api/db.js?action=:path*" },
     { "source": "/api/db", "destination": "/api/db.js" },
     { "source": "/api/client-log", "destination": "/api/client-log.js" },

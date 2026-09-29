@@ -93,7 +93,14 @@ exports.handler = async (event) => {
 
     const fetchHeaders = {
       'Content-Type': 'application/json',
-      'Accept': 'application/json'
+      'Accept': 'application/json, text/plain, */*',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      'Referer': 'https://dld.srmist.edu.in/ktretecurricula/',
+      'Origin': 'https://dld.srmist.edu.in',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Sec-Fetch-Dest': 'empty',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Site': 'same-origin'
     };
 
     if (event.headers && (event.headers.authorization || event.headers.Authorization)) {

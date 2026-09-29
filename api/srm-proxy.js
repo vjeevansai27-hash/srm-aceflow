@@ -55,7 +55,17 @@ export default async function handler(req, res) {
       }
     }
 
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = {
+      'Content-Type': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      'Referer': 'https://dld.srmist.edu.in/ktretecurricula/',
+      'Origin': 'https://dld.srmist.edu.in',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Sec-Fetch-Dest': 'empty',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Site': 'same-origin'
+    };
     if (req.headers.authorization) headers['Authorization'] = req.headers.authorization;
 
     const fetchOptions = { method: req.method, headers };

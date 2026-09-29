@@ -7,3 +7,8 @@ tunnel-url.txt
 !server.ps1
 !start-tunnel.ps1
 !push-to-github.ps1
+*.docx
+*.txt
+*.pdf
+qdata_*.json
+!public/**

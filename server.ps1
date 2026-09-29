@@ -1,8 +1,8 @@
 $listener = New-Object System.Net.HttpListener
-$prefix = 'http://localhost:3000/'
-$listener.Prefixes.Add($prefix)
+$listener.Prefixes.Add('http://localhost:3000/')
+$listener.Prefixes.Add('http://127.0.0.1:3000/')
 $listener.Start()
-Write-Host "Server running at $prefix with SRM Proxy support"
+Write-Host "Server running at http://localhost:3000/ with SRM Proxy support"
 
 $baseDir = "C:\Users\jeevan official\.gemini\antigravity-ide\scratch\srm-aceit\public"
 $srmBase = "https://dld.srmist.edu.in/ktretecurricula/server"
@@ -257,21 +257,223 @@ while ($listener.IsListening) {
             continue
         }
 
-        # FILE PROXY ROUTE: /api/srm-file-proxy?url=...
+        # GOOGLE DRIVE DIRECT RELAY: /api/drive-upload
+        if ($localPath -eq '/api/drive-upload') {
+            $response.Headers.Add("Access-Control-Allow-Origin", "*")
+            $response.Headers.Add("Access-Control-Allow-Methods", "POST, OPTIONS")
+            $response.Headers.Add("Access-Control-Allow-Headers", "Content-Type")
+            $response.ContentType = 'application/json; charset=utf-8'
+
+            if ($request.HttpMethod -eq 'OPTIONS') {
+                $response.StatusCode = 200
+                $response.OutputStream.Close()
+                continue
+            }
+
+            $reqBody = ReadRequestBody($request)
+            try {
+                $payload = $reqBody | ConvertFrom-Json
+                $webhookUrl = $payload.webhookUrl
+                if (-not $webhookUrl) {
+                    throw "Missing personal Google Apps Script webhookUrl"
+                }
+
+                $scriptPayload = @{
+                    base64    = $payload.base64
+                    fileName  = $payload.fileName
+                    mimeType  = "application/pdf"
+                    folderId  = if ($payload.folderId) { $payload.folderId } else { "" }
+                } | ConvertTo-Json -Compress
+
+                Write-Host "[DRIVE UPLOAD] Uploading $($payload.fileName) to student personal Google Drive..." -ForegroundColor Cyan
+                $driveRes = Invoke-RestMethod -Uri $webhookUrl -Method POST -Body $scriptPayload -ContentType "application/json; charset=utf-8" -TimeoutSec 45 -MaximumRedirection 5
+                
+                $outJson = $driveRes | ConvertTo-Json -Compress
+                $respBytes = [System.Text.Encoding]::UTF8.GetBytes($outJson)
+                $response.StatusCode = 200
+                $response.ContentLength64 = $respBytes.Length
+                $response.OutputStream.Write($respBytes, 0, $respBytes.Length)
+            } catch {
+                Write-Host "[DRIVE UPLOAD ERROR] $_" -ForegroundColor Red
+                $errObj = @{ success = $false; error = $_.Exception.Message }
+                $errBytes = [System.Text.Encoding]::UTF8.GetBytes(($errObj | ConvertTo-Json -Compress))
+                $response.StatusCode = 500
+                $response.ContentLength64 = $errBytes.Length
+                $response.OutputStream.Write($errBytes, 0, $errBytes.Length)
+            }
+            $response.OutputStream.Close()
+            continue
+        }
+
+        # GOOGLE DRIVE CONNECTION TEST: /api/drive-test
+        if ($localPath -eq '/api/drive-test') {
+            $response.Headers.Add("Access-Control-Allow-Origin", "*")
+            $response.Headers.Add("Access-Control-Allow-Methods", "POST, OPTIONS")
+            $response.Headers.Add("Access-Control-Allow-Headers", "Content-Type")
+            $response.ContentType = 'application/json; charset=utf-8'
+
+            if ($request.HttpMethod -eq 'OPTIONS') {
+                $response.StatusCode = 200
+                $response.OutputStream.Close()
+                continue
+            }
+
+            $reqBody = ReadRequestBody($request)
+            try {
+                $payload = $reqBody | ConvertFrom-Json
+                $webhookUrl = $payload.webhookUrl
+                if (-not $webhookUrl) {
+                    throw "Missing webhookUrl"
+                }
+
+                Write-Host "[DRIVE TEST] Verifying connection to $webhookUrl..." -ForegroundColor Cyan
+                $testRes = Invoke-RestMethod -Uri $webhookUrl -Method GET -TimeoutSec 15 -MaximumRedirection 5
+                $outJson = $testRes | ConvertTo-Json -Compress
+                $respBytes = [System.Text.Encoding]::UTF8.GetBytes($outJson)
+                $response.StatusCode = 200
+                $response.ContentLength64 = $respBytes.Length
+                $response.OutputStream.Write($respBytes, 0, $respBytes.Length)
+            } catch {
+                if ($webhookUrl) {
+                    Write-Host "[DRIVE TEST NOTE] GET ping returned: $_. Trying POST ping..." -ForegroundColor Yellow
+                    try {
+                        $pingPayload = @{ ping = $true } | ConvertTo-Json -Compress
+                        $testRes = Invoke-RestMethod -Uri $webhookUrl -Method POST -Body $pingPayload -ContentType "application/json" -TimeoutSec 15 -MaximumRedirection 5
+                        $outJson = $testRes | ConvertTo-Json -Compress
+                        $respBytes = [System.Text.Encoding]::UTF8.GetBytes($outJson)
+                        $response.StatusCode = 200
+                        $response.ContentLength64 = $respBytes.Length
+                        $response.OutputStream.Write($respBytes, 0, $respBytes.Length)
+                    } catch {
+                        $errObj = @{ success = $false; error = $_.Exception.Message }
+                        $errBytes = [System.Text.Encoding]::UTF8.GetBytes(($errObj | ConvertTo-Json -Compress))
+                        $response.StatusCode = 200
+                        $response.ContentLength64 = $errBytes.Length
+                        $response.OutputStream.Write($errBytes, 0, $errBytes.Length)
+                    }
+                } else {
+                    $errObj = @{ success = $false; error = "Missing webhookUrl" }
+                    $errBytes = [System.Text.Encoding]::UTF8.GetBytes(($errObj | ConvertTo-Json -Compress))
+                    $response.StatusCode = 200
+                    $response.ContentLength64 = $errBytes.Length
+                    $response.OutputStream.Write($errBytes, 0, $errBytes.Length)
+                }
+            }
+            $response.OutputStream.Close()
+            continue
+        }
+
+        # FAST SRM FILE RESOLVER: /api/srm-file-resolve?course=...&session=...&slo=...&unit=...
+        if ($localPath.StartsWith('/api/srm-file-resolve')) {
+            $response.Headers.Add("Access-Control-Allow-Origin", "*")
+            $response.Headers.Add("Access-Control-Allow-Methods", "GET, OPTIONS")
+            $response.Headers.Add("Access-Control-Allow-Headers", "*")
+            $response.ContentType = 'application/json; charset=utf-8'
+
+            $cCode = $request.QueryString['course']
+            $sNum  = $request.QueryString['session']
+            $slo   = $request.QueryString['slo']
+            $uNum  = $request.QueryString['unit']
+
+            $foundObj = @{ success = $false; url = ""; ext = ""; filename = ""; docx = ""; pdf = "" }
+
+            if ($cCode -and $sNum -and $slo) {
+                $numOnly = [int](($sNum -replace '\D', ''))
+                $uInt = if ($uNum) { [int](($uNum -replace '\D', '')) } else { 0 }
+                
+                $candidates = New-Object System.Collections.Generic.List[string]
+                if ($numOnly -gt 0) { $candidates.Add("$numOnly") }
+                if ($uInt -gt 0 -and $numOnly -lt 100) { $candidates.Add("$($uInt * 100 + $numOnly)") }
+                if ($numOnly -ge 100) { $candidates.Add("$($numOnly % 100)") }
+
+                $baseUpload = "https://dld.srmist.edu.in/etecurricula/server/uploads/data/coordinator/$cCode"
+
+                foreach ($cand in $candidates) {
+                    # Check PDF first (slppdf)
+                    if (-not $foundObj.pdf) {
+                        $pdfUrl = "$baseUpload/slppdf/$cand$slo.pdf"
+                        try {
+                            $req = [System.Net.HttpWebRequest]::Create($pdfUrl)
+                            $req.Method = "HEAD"
+                            $req.Timeout = 1200
+                            $res = $req.GetResponse()
+                            if ($res.StatusCode -eq 200) {
+                                $foundObj.pdf = $pdfUrl
+                                if (-not $foundObj.url) {
+                                    $foundObj.url = $pdfUrl
+                                    $foundObj.ext = "pdf"
+                                    $foundObj.filename = "$cand$slo.pdf"
+                                    $foundObj.success = $true
+                                }
+                            }
+                            $res.Close()
+                        } catch {}
+                    }
+
+                    # Check DOCX (slp)
+                    if (-not $foundObj.docx) {
+                        $docxUrl = "$baseUpload/slp/$cand$slo.docx"
+                        try {
+                            $req = [System.Net.HttpWebRequest]::Create($docxUrl)
+                            $req.Method = "HEAD"
+                            $req.Timeout = 1200
+                            $res = $req.GetResponse()
+                            if ($res.StatusCode -eq 200) {
+                                $foundObj.docx = $docxUrl
+                                if (-not $foundObj.url) {
+                                    $foundObj.url = $docxUrl
+                                    $foundObj.ext = "docx"
+                                    $foundObj.filename = "$cand$slo.docx"
+                                    $foundObj.success = $true
+                                }
+                            }
+                            $res.Close()
+                        } catch {}
+                    }
+
+                    if ($foundObj.pdf -and $foundObj.docx) { break }
+                }
+            }
+
+            $respBytes = [System.Text.Encoding]::UTF8.GetBytes(($foundObj | ConvertTo-Json -Compress))
+            $response.StatusCode = 200
+            $response.ContentLength64 = $respBytes.Length
+            $response.OutputStream.Write($respBytes, 0, $respBytes.Length)
+            $response.OutputStream.Close()
+            continue
+        }
+
+        # FILE PROXY ROUTE: /api/srm-file-proxy?url=...&filename=...
         if ($localPath.StartsWith('/api/srm-file-proxy')) {
             $response.Headers.Add("Access-Control-Allow-Origin", "*")
             $response.Headers.Add("Access-Control-Allow-Methods", "GET, OPTIONS")
             $response.Headers.Add("Access-Control-Allow-Headers", "*")
+            $response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition")
             $fileUrl = $request.QueryString['url']
+            $reqFilename = $request.QueryString['filename']
             if ($fileUrl) {
                 try {
                     $wc = New-Object System.Net.WebClient
-                    $fileBytes = $wc.DownloadData($fileUrl)
-                    $response.ContentType = 'application/pdf'
+                    [byte[]]$fileBytes = $wc.DownloadData($fileUrl)
+                    if (-not $reqFilename) {
+                        $reqFilename = [System.IO.Path]::GetFileName($fileUrl)
+                    }
+                    if ($reqFilename.EndsWith('.docx')) {
+                        $response.ContentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    } elseif ($reqFilename.EndsWith('.doc')) {
+                        $response.ContentType = 'application/msword'
+                    } elseif ($reqFilename.EndsWith('.pdf')) {
+                        $response.ContentType = 'application/pdf'
+                    } else {
+                        $response.ContentType = 'application/octet-stream'
+                    }
+                    $response.Headers.Add("Content-Disposition", "attachment; filename=`"$reqFilename`"")
                     $response.StatusCode = 200
-                    $response.ContentLength64 = $fileBytes.Length
+                    $response.ContentLength64 = [long]$fileBytes.Length
                     $response.OutputStream.Write($fileBytes, 0, $fileBytes.Length)
+                    $response.OutputStream.Flush()
                 } catch {
+                    Write-Host "[FILE PROXY ERROR] Failed to fetch $fileUrl : $_" -ForegroundColor Red
                     $response.StatusCode = 500
                 }
             } else {
@@ -363,13 +565,22 @@ while ($listener.IsListening) {
                 }
             }
 
-            try {
-                $headers = @{}
+                $headers = @{
+                    "User-Agent"      = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+                    "Referer"         = "https://dld.srmist.edu.in/ktretecurricula/"
+                    "Origin"          = "https://dld.srmist.edu.in"
+                    "Accept"          = "application/json, text/plain, */*"
+                    "Accept-Language" = "en-US,en;q=0.9"
+                    "Sec-Fetch-Dest"  = "empty"
+                    "Sec-Fetch-Mode"  = "cors"
+                    "Sec-Fetch-Site"  = "same-origin"
+                }
                 if ($request.Headers['Authorization']) {
                     $headers['Authorization'] = $request.Headers['Authorization']
                 }
 
-                $srmRes = Invoke-WebRequest -Uri $targetUrl `
+                try {
+                    $srmRes = Invoke-WebRequest -Uri $targetUrl `
                     -Method $request.HttpMethod `
                     -Body $reqBody `
                     -ContentType 'application/json' `
@@ -422,7 +633,9 @@ while ($listener.IsListening) {
             
             $response.Headers.Add("Access-Control-Allow-Origin", "*")
             $response.ContentLength64 = $bytes.Length
-            $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            if ($request.HttpMethod -ne 'HEAD') {
+                $response.OutputStream.Write($bytes, 0, $bytes.Length)
+            }
         } else {
             $response.StatusCode = 404
         }

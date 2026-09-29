@@ -14,26 +14,26 @@
                   "RA2511026011226":  {
                                           "regNum":  "RA2511026011226",
                                           "name":  "ANANYA KATIAR",
-                                          "department":  "SRMIST",
+                                          "department":  "Computer Science \u0026 Engineering (AI/ML)",
                                           "firstSeen":  "2026-09-26T11:42:55Z",
-                                          "lastLogin":  "2026-09-26T12:56:12Z",
-                                          "loginCount":  2,
+                                          "lastLogin":  "2026-09-29T18:32:55Z",
+                                          "loginCount":  5,
                                           "solvedCount":  0,
                                           "dailySolved":  0,
-                                          "dailyDate":  "2026-09-26",
+                                          "dailyDate":  "2026-09-29",
                                           "isVip":  false,
                                           "plan":  "Free Tier"
                                       },
                   "RA2511003010999":  {
                                           "regNum":  "RA2511003010999",
-                                          "name":  "DHYANESHWAR A S",
-                                          "department":  "SRMIST",
+                                          "name":  "Student RA2511003010999",
+                                          "department":  "Computer Science \u0026 Engineering (AI/ML)",
                                           "firstSeen":  "2026-09-26T11:49:48Z",
-                                          "lastLogin":  "2026-09-26T17:29:09Z",
-                                          "loginCount":  4,
-                                          "solvedCount":  7,
-                                          "dailySolved":  7,
-                                          "dailyDate":  "2026-09-26",
+                                          "lastLogin":  "2026-09-29T21:21:52Z",
+                                          "loginCount":  17,
+                                          "solvedCount":  12,
+                                          "dailySolved":  0,
+                                          "dailyDate":  "2026-09-29",
                                           "isVip":  false,
                                           "plan":  "Free Tier"
                                       },
@@ -55,11 +55,24 @@
                                           "name":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
                                           "department":  "COMPUTER SCIENCE AND ENGINEERING WITH SPECIALIZATION IN ARTIFICIAL INTELLIGENCE AND MACHINE LEARNING",
                                           "firstSeen":  "2026-09-26T17:30:03Z",
-                                          "lastLogin":  "2026-09-26T17:31:21Z",
-                                          "loginCount":  1,
-                                          "solvedCount":  5,
+                                          "lastLogin":  "2026-09-27T00:01:45Z",
+                                          "loginCount":  3,
+                                          "solvedCount":  12,
                                           "dailySolved":  5,
-                                          "dailyDate":  "2026-09-26",
+                                          "dailyDate":  "2026-09-27",
+                                          "isVip":  false,
+                                          "plan":  "Free Tier"
+                                      },
+                  "RA2511026010556":  {
+                                          "regNum":  "RA2511026010556",
+                                          "name":  "Student RA2511026010556",
+                                          "department":  "Computer Science \u0026 Engineering (AI/ML)",
+                                          "firstSeen":  "2026-09-27T09:32:21Z",
+                                          "lastLogin":  "2026-09-29T21:25:33Z",
+                                          "loginCount":  4,
+                                          "solvedCount":  0,
+                                          "dailySolved":  0,
+                                          "dailyDate":  "2026-09-29",
                                           "isVip":  false,
                                           "plan":  "Free Tier"
                                       }
@@ -90,6 +103,502 @@
                      }
                  ],
     "activityLog":  [
+                        {
+                            "id":  "evt-1790697333159",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511026010556",
+                            "userName":  "Student RA2511026010556",
+                            "text":  "Logged in from Computer Science \u0026 Engineering (AI/ML)",
+                            "timestamp":  "2026-09-29T21:25:33Z"
+                        },
+                        {
+                            "id":  "evt-1790697112313",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "Student RA2511003010999",
+                            "text":  "Logged in from Computer Science \u0026 Engineering (AI/ML)",
+                            "timestamp":  "2026-09-29T21:21:52Z"
+                        },
+                        {
+                            "id":  "evt-1790697087522",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511026010556",
+                            "userName":  "Student RA2511026010556",
+                            "text":  "Logged in from SRMIST",
+                            "timestamp":  "2026-09-29T21:21:27Z"
+                        },
+                        {
+                            "id":  "evt-1790696564613",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511026010556",
+                            "userName":  "Student RA2511026010556",
+                            "text":  "Logged in from Computer Science \u0026 Engineering (AI/ML)",
+                            "timestamp":  "2026-09-29T21:12:44Z"
+                        },
+                        {
+                            "id":  "evt-1790686975288",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511026011226",
+                            "userName":  "ANANYA KATIAR",
+                            "text":  "Logged in from Computer Science \u0026 Engineering (AI/ML)",
+                            "timestamp":  "2026-09-29T18:32:55Z"
+                        },
+                        {
+                            "id":  "evt-1790686737539",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Logged in from SRMIST",
+                            "timestamp":  "2026-09-29T18:28:57Z"
+                        },
+                        {
+                            "id":  "evt-1790673441860",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Logged in from SRMIST",
+                            "timestamp":  "2026-09-29T14:47:21Z"
+                        },
+                        {
+                            "id":  "evt-1790534407392",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Logged in from COMPUTER SCIENCE AND ENGINEERING",
+                            "timestamp":  "2026-09-28T00:10:07Z"
+                        },
+                        {
+                            "id":  "evt-1790534398042",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511026011226",
+                            "userName":  "ANANYA KATIAR",
+                            "text":  "Logged in from Computer Science \u0026 Engineering (AI/ML)",
+                            "timestamp":  "2026-09-28T00:09:58Z"
+                        },
+                        {
+                            "id":  "evt-1790534386580",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511026011226",
+                            "userName":  "ANANYA KATIAR",
+                            "text":  "Logged in from Computer Science \u0026 Engineering (AI/ML)",
+                            "timestamp":  "2026-09-28T00:09:46Z"
+                        },
+                        {
+                            "id":  "evt-1790534366463",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Logged in from SRMIST",
+                            "timestamp":  "2026-09-28T00:09:26Z"
+                        },
+                        {
+                            "id":  "evt-1790531379885",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Logged in from SRMIST",
+                            "timestamp":  "2026-09-27T23:19:39Z"
+                        },
+                        {
+                            "id":  "evt-1790530253137",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Logged in from SRMIST",
+                            "timestamp":  "2026-09-27T23:00:53Z"
+                        },
+                        {
+                            "id":  "evt-1790530232917",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Logged in from SRMIST",
+                            "timestamp":  "2026-09-27T23:00:32Z"
+                        },
+                        {
+                            "id":  "evt-1790483058718",
+                            "type":  "SOLVE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Automated Session 206 (21LEM202T) • 100% Score + Personal Drive Sync",
+                            "timestamp":  "2026-09-27T09:54:18Z"
+                        },
+                        {
+                            "id":  "evt-1790481859023",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Logged in from COMPUTER SCIENCE AND ENGINEERING",
+                            "timestamp":  "2026-09-27T09:34:19Z"
+                        },
+                        {
+                            "id":  "evt-1790481741126",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511026010556",
+                            "userName":  "MADDIPATLA VENKATA JAYADEEP",
+                            "text":  "Logged in from COMPUTER SCIENCE AND ENGINEERING WITH SPECIALIZATION IN ARTIFICIAL INTELLIGENCE AND MACHINE LEARNING",
+                            "timestamp":  "2026-09-27T09:32:21Z"
+                        },
+                        {
+                            "id":  "evt-1790477696761",
+                            "type":  "SOLVE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Automated Session 205 (21LEM202T) • 100% Score + Personal Drive Sync",
+                            "timestamp":  "2026-09-27T08:24:56Z"
+                        },
+                        {
+                            "id":  "evt-1790477573260",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Logged in from SRMIST",
+                            "timestamp":  "2026-09-27T08:22:53Z"
+                        },
+                        {
+                            "id":  "evt-1790476134142",
+                            "type":  "SOLVE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Automated Session 204 (21LEM202T) • 100% Score + Personal Drive Sync",
+                            "timestamp":  "2026-09-27T07:58:54Z"
+                        },
+                        {
+                            "id":  "evt-1790475896710",
+                            "type":  "SOLVE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Automated Session 203 (21LEM202T) • 100% Score + Personal Drive Sync",
+                            "timestamp":  "2026-09-27T07:54:56Z"
+                        },
+                        {
+                            "id":  "evt-1790475774465",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Logged in from SRMIST",
+                            "timestamp":  "2026-09-27T07:52:54Z"
+                        },
+                        {
+                            "id":  "evt-1790450385490",
+                            "type":  "SOLVE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Automated Session 202 (21LEM202T) • 100% Score + Personal Drive Sync",
+                            "timestamp":  "2026-09-27T00:49:45Z"
+                        },
+                        {
+                            "id":  "evt-1790450263829",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Logged in from SRMIST",
+                            "timestamp":  "2026-09-27T00:47:43Z"
+                        },
+                        {
+                            "id":  "evt-1790449979578",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 0 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:59Z"
+                        },
+                        {
+                            "id":  "evt-1790449978625",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 0 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:58Z"
+                        },
+                        {
+                            "id":  "evt-1790449978568",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 0 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:58Z"
+                        },
+                        {
+                            "id":  "evt-1790449977616",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 1 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:57Z"
+                        },
+                        {
+                            "id":  "evt-1790449977562",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 1 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:57Z"
+                        },
+                        {
+                            "id":  "evt-1790449976622",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 2 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:56Z"
+                        },
+                        {
+                            "id":  "evt-1790449976553",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 2 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:56Z"
+                        },
+                        {
+                            "id":  "evt-1790449975572",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 3 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:55Z"
+                        },
+                        {
+                            "id":  "evt-1790449975526",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 3 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:55Z"
+                        },
+                        {
+                            "id":  "evt-1790449974631",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 4 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:54Z"
+                        },
+                        {
+                            "id":  "evt-1790449974523",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 4 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:54Z"
+                        },
+                        {
+                            "id":  "evt-1790449973564",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 5 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:53Z"
+                        },
+                        {
+                            "id":  "evt-1790449973508",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 5 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:53Z"
+                        },
+                        {
+                            "id":  "evt-1790449972561",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 6 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:52Z"
+                        },
+                        {
+                            "id":  "evt-1790449972494",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 6 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:52Z"
+                        },
+                        {
+                            "id":  "evt-1790449971536",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 7 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:51Z"
+                        },
+                        {
+                            "id":  "evt-1790449971494",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Queued 7 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:42:51Z"
+                        },
+                        {
+                            "id":  "evt-1790449970332",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511003010999",
+                            "userName":  "DHYANESHWAR A S",
+                            "text":  "Logged in from COMPUTER SCIENCE AND ENGINEERING",
+                            "timestamp":  "2026-09-27T00:42:50Z"
+                        },
+                        {
+                            "id":  "evt-1790447505994",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Queued 3 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:01:45Z"
+                        },
+                        {
+                            "id":  "evt-1790447504429",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Queued 3 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:01:44Z"
+                        },
+                        {
+                            "id":  "evt-1790447504356",
+                            "type":  "SOLVE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Automated Session 109 (21CSC203P) • 100% Score + Drive Sync",
+                            "timestamp":  "2026-09-27T00:01:44Z"
+                        },
+                        {
+                            "id":  "evt-1790447502998",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Queued 3 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:01:42Z"
+                        },
+                        {
+                            "id":  "evt-1790447501446",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Queued 4 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:01:41Z"
+                        },
+                        {
+                            "id":  "evt-1790447501350",
+                            "type":  "SOLVE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Automated Session 108 (21CSC203P) • 100% Score + Drive Sync",
+                            "timestamp":  "2026-09-27T00:01:41Z"
+                        },
+                        {
+                            "id":  "evt-1790447500024",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Queued 4 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:01:40Z"
+                        },
+                        {
+                            "id":  "evt-1790447498273",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Queued 5 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:01:38Z"
+                        },
+                        {
+                            "id":  "evt-1790447498218",
+                            "type":  "SOLVE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Automated Session 107 (21CSC203P) • 100% Score + Drive Sync",
+                            "timestamp":  "2026-09-27T00:01:38Z"
+                        },
+                        {
+                            "id":  "evt-1790447497026",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Queued 5 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:01:37Z"
+                        },
+                        {
+                            "id":  "evt-1790447495370",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Queued 6 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:01:35Z"
+                        },
+                        {
+                            "id":  "evt-1790447495286",
+                            "type":  "SOLVE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Automated Session 106 (21CSC203P) • 100% Score + Drive Sync",
+                            "timestamp":  "2026-09-27T00:01:35Z"
+                        },
+                        {
+                            "id":  "evt-1790447493991",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Queued 6 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:01:33Z"
+                        },
+                        {
+                            "id":  "evt-1790447492927",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Queued 7 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:01:32Z"
+                        },
+                        {
+                            "id":  "evt-1790447492837",
+                            "type":  "SOLVE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Automated Session 105 (21CSC203P) • 100% Score + Drive Sync",
+                            "timestamp":  "2026-09-27T00:01:32Z"
+                        },
+                        {
+                            "id":  "evt-1790447432059",
+                            "type":  "QUEUE_UPDATE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Queued 7 session(s) scheduled for tomorrow",
+                            "timestamp":  "2026-09-27T00:00:32Z"
+                        },
+                        {
+                            "id":  "evt-1790446234126",
+                            "type":  "SOLVE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Automated Session 309 (21LEM202T) • 100% Score + Personal Drive Sync",
+                            "timestamp":  "2026-09-26T23:40:34Z"
+                        },
+                        {
+                            "id":  "evt-1790445637530",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Logged in from SRMIST",
+                            "timestamp":  "2026-09-26T23:30:37Z"
+                        },
+                        {
+                            "id":  "evt-1790443100442",
+                            "type":  "SOLVE",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Automated Session 101 (21CSC203P) • 100% Score + Drive Sync",
+                            "timestamp":  "2026-09-26T22:48:20Z"
+                        },
+                        {
+                            "id":  "evt-1790443087412",
+                            "type":  "LOGIN",
+                            "regNum":  "RA2511026011220",
+                            "userName":  "NAGA SATYA SAI PRAHLAD DAMISETTI",
+                            "text":  "Logged in from COMPUTER SCIENCE AND ENGINEERING WITH SPECIALIZATION IN ARTIFICIAL INTELLIGENCE AND MACHINE LEARNING",
+                            "timestamp":  "2026-09-26T22:48:07Z"
+                        },
                         {
                             "id":  "evt-1790424081204",
                             "type":  "QUEUE_UPDATE",

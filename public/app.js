@@ -196,24 +196,29 @@ try {
   }
 } catch (_) {}
 
+function isDirectDriveFileLink(url) {
+  if (!url || typeof url !== 'string') return false;
+  const s = url.trim();
+  if (!s.startsWith('https://drive.google.com/') && !s.startsWith('https://docs.google.com/')) return false;
+  if (s.includes('/folders/')) return false; // Strictly reject folder links!
+  if (s.includes('/file/d/') || s.includes('/document/d/') || s.includes('id=')) return true;
+  return false;
+}
+
 function getOrGenerateDriveLink(sessionNum, sloNum) {
-  // 1. If student manually pasted a genuine Google Drive link into the input box, prioritize it
+  // 1. If student manually pasted a genuine Google Drive direct file link into the input box, prioritize it
   const inputEl = document.getElementById(`slo-link-${sloNum}`);
   const currentInputVal = inputEl?.value?.trim();
-  if (currentInputVal && currentInputVal.startsWith('https://drive.google.com/') && !currentInputVal.match(/\/file\/d\/1[a-zA-Z0-9]{32}\//)) {
+  if (currentInputVal && isDirectDriveFileLink(currentInputVal)) {
     return currentInputVal;
   }
 
-  // 2. Check localStorage for genuine stored link
-  const key = `aceit_drivelink_${state.regNum}_${state.currentSubject?.code}_${sessionNum}_${sloNum}`;
+  // 2. Check localStorage for stored direct file link
+  const courseCode = state.currentSubject?.code || 'COURSE';
+  const key = `aceit_pdflink_${state.regNum}_${courseCode}_${sessionNum}_${sloNum}`;
   const stored = localStorage.getItem(key);
-  if (stored && stored.startsWith('https://drive.google.com/') && !stored.match(/\/file\/d\/1[a-zA-Z0-9]{32}\//)) {
+  if (stored && isDirectDriveFileLink(stored)) {
     return stored;
-  }
-
-  // 3. Use student's configured personal Google Drive Folder URL
-  if (state.googleDrive?.folderUrl && state.googleDrive.folderUrl.startsWith('https://drive.google.com/')) {
-    return state.googleDrive.folderUrl.trim();
   }
 
   return '';
@@ -230,10 +235,10 @@ async function uploadSLOToGoogleDrive(sessionNum, sloNum, triggerDownload = true
   }
 
   const courseCode = state.currentSubject?.code || 'COURSE';
-  const fileName = `${state.regNum || 'Student'}_${courseCode}_Session${sessionNum}_SLO${sloNum}_Worksheet.pdf`;
+  const fileName = `${state.regNum || 'Student'}_${courseCode}_Session${sessionNum}_SLO${sloNum}_Answers.pdf`;
   let finalDriveUrl = '';
 
-  // 1. Direct upload into student's personal Google Drive via Google Apps Script Webhook
+  // 1. Direct upload into student's personal Google Drive via Google Apps Script Webhook (Method 2)
   if (state.googleDrive?.webhookUrl && state.googleDrive.webhookUrl.startsWith('https://script.google.com/')) {
     try {
       toast(`☁ Uploading Slot ${sloNum} PDF directly to your personal Google Drive…`);
@@ -253,6 +258,16 @@ async function uploadSLOToGoogleDrive(sessionNum, sloNum, triggerDownload = true
         finalDriveUrl = data.url || data.fileUrl || data.webViewLink;
         console.log(`[Drive Upload] Successfully uploaded to student personal Drive: ${finalDriveUrl}`);
         toast(`✅ Slot ${sloNum} PDF uploaded directly to your Google Drive!`);
+        
+        const key = `aceit_pdflink_${state.regNum}_${courseCode}_${sessionNum}_${sloNum}`;
+        localStorage.setItem(key, finalDriveUrl);
+        if (sloNum === 1) currentSessionData.slo1DriveLink = finalDriveUrl;
+        else currentSessionData.slo2DriveLink = finalDriveUrl;
+
+        const inputEl = document.getElementById(`slo-link-${sloNum}`);
+        if (inputEl) inputEl.value = finalDriveUrl;
+
+        return finalDriveUrl;
       } else if (data && data.error) {
         console.warn('Webhook upload error:', data.error);
       }
@@ -261,173 +276,245 @@ async function uploadSLOToGoogleDrive(sessionNum, sloNum, triggerDownload = true
     }
   }
 
-  // 2. Genuine personal Google Drive folder link
-  if (!finalDriveUrl) {
-    const userFolder = (state.googleDrive?.folderUrl || '').trim();
-    if (userFolder && userFolder.startsWith('https://drive.google.com/')) {
-      finalDriveUrl = userFolder;
-    } else {
-      const existingLink = (document.getElementById(`slo-link-${sloNum}`)?.value || '').trim();
-      if (existingLink && existingLink.startsWith('https://drive.google.com/') && !existingLink.match(/\/file\/d\/1[a-zA-Z0-9]{32}\//)) {
-        finalDriveUrl = existingLink;
-      }
-    }
-  }
-
-  // 3. If still no link, prompt student to link personal Drive
-  if (!finalDriveUrl) {
-    openDriveModal(true);
-    toast('⚠️ Please provide your Google Drive folder link to submit');
-    return null;
-  }
-
-  const key = `aceit_drivelink_${state.regNum}_${courseCode}_${sessionNum}_${sloNum}`;
-  localStorage.setItem(key, finalDriveUrl);
-  if (sloNum === 1) currentSessionData.slo1DriveLink = finalDriveUrl;
-  else currentSessionData.slo2DriveLink = finalDriveUrl;
-
-  const inputEl = document.getElementById(`slo-link-${sloNum}`);
-  if (inputEl) inputEl.value = finalDriveUrl;
-
+  // 2. Manual Upload Flow (Method 1) - Downloads PDF, Opens Drive Folder, and Prompts for Direct File Link
   if (triggerDownload) {
     downloadSLOAnswerPDF(sessionNum, sloNum);
   }
 
-  // If using Method 1 (Folder URL without Webhook), open Drive folder in new tab and guide user
-  if (!state.googleDrive?.webhookUrl && finalDriveUrl.startsWith('https://drive.google.com/')) {
+  const userFolder = (state.googleDrive?.folderUrl || '').trim();
+  if (userFolder && userFolder.startsWith('https://drive.google.com/')) {
     try {
-      window.open(finalDriveUrl, '_blank');
+      window.open(userFolder, '_blank');
     } catch (_) {}
-    showDriveDropGuideModal(fileName, finalDriveUrl);
-  } else if (state.googleDrive?.webhookUrl) {
-    toast(`✅ Solved PDF uploaded into your Google Drive & submitted to SRM!`);
   }
 
-  return finalDriveUrl;
+  showDriveFilePromptModal(sessionNum, sloNum, fileName);
+  return null;
 }
 
 function downloadSLOAnswerDOCX(sessionNum, sloNum) {
-  if (typeof getSessionWorksheetData !== 'function') {
-    toast('⚠ Worksheet data generator not ready');
+  if (typeof buildSessionAnswerDOCX !== 'function') {
+    toast('⚠ Answer document generator not ready');
     return;
   }
-  const data = getSessionWorksheetData(sessionNum, sloNum, currentSessionData, state);
-  const fileName = `${data.regNum}_${data.courseCode}_Sess${sessionNum}_SLO${sloNum}_Answers.doc`;
-
-  let qaHtml = '';
-  (data.questionsList || []).forEach((item, idx) => {
-    const qClean = (item.q || '').replace(/\n/g, '<br/>');
-    const aClean = (item.a || '').replace(/\n/g, '<br/>');
-    qaHtml += `
-      <div style="margin-top:16px;margin-bottom:12px">
-        <p style="font-weight:bold;color:#0f172a;margin-bottom:4px">
-          <strong>${idx + 1}. ${qClean}</strong>
-        </p>
-        <p style="font-weight:bold;color:#4338ca;margin-bottom:4px">
-          <strong>Answer:</strong>
-        </p>
-        <div style="color:#1e293b;line-height:1.6;margin-left:10px;background:#f8fafc;padding:10px 14px;border-left:3px solid #4338ca">
-          ${aClean}
-        </div>
-      </div>
-    `;
-  });
-
-  const docHtml = `
-    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-    <head>
-      <meta charset='utf-8'>
-      <title>${data.courseCode} Session ${sessionNum} Solved Answers</title>
-      <style>
-        body { font-family: 'Calibri', 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #1e293b; line-height: 1.5; margin: 25mm 20mm; }
-        .hdr { text-align: center; margin-bottom: 12px; }
-        .hdr h2 { font-size: 13pt; margin: 3px 0; color: #0f172a; }
-        .hdr h3 { font-size: 11pt; margin: 2px 0; color: #334155; }
-        .table-meta { width: 100%; border-collapse: collapse; margin: 14px 0 20px 0; }
-        .table-meta td { border: 1px solid #cbd5e1; padding: 6px 12px; font-size: 10pt; }
-        .table-meta td strong { color: #334155; }
-      </style>
-    </head>
-    <body>
-      <div class="hdr">
-        <h2>SRM INSTITUTE OF SCIENCE AND TECHNOLOGY</h2>
-        <h3>FACULTY OF ENGINEERING AND TECHNOLOGY — SCHOOL OF COMPUTING</h3>
-        <h3>${data.courseCode} ${data.courseName}</h3>
-        <h3 style="margin-top:8px;color:#1e293b">${data.displayTopic}</h3>
-        <h4 style="margin:4px 0;color:#475569">${data.displaySlo}</h4>
-      </div>
-
-      <table class="table-meta">
-        <tr>
-          <td style="width:50%"><strong>Name:</strong> ${data.studentName}</td>
-          <td style="width:50%"><strong>Reg. No:</strong> ${data.regNum}</td>
-        </tr>
-        <tr>
-          <td><strong>Branch:</strong> ${data.branch}</td>
-          <td><strong>Date:</strong> ${data.dateStr}</td>
-        </tr>
-      </table>
-
-      <h3 style="border-bottom:2px solid #4338ca;padding-bottom:4px;color:#1e293b">Activity Worksheet — Solved Questions &amp; Detailed Solutions</h3>
-
-      ${qaHtml}
-    </body>
-    </html>
-  `;
-
-  const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword' });
+  const res = buildSessionAnswerDOCX(sessionNum, sloNum, currentSessionData, state);
+  const blob = new Blob(['\ufeff', res.html], { type: 'application/msword' });
   const blobUrl = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = blobUrl;
-  link.download = fileName;
+  link.download = res.fileName;
   document.body.appendChild(link);
   link.click();
   setTimeout(() => {
     document.body.removeChild(link);
     URL.revokeObjectURL(blobUrl);
   }, 15000);
-  toast(`⬇ Downloaded Solved DOCX: ${fileName}`);
+  toast(`⬇ Downloaded Solved Worksheet DOCX: ${res.fileName}`);
 }
 
-function showDriveDropGuideModal(fileName, folderUrl) {
-  let modal = document.getElementById('driveDropModal');
-  if (!modal) {
-    modal = document.createElement('div');
-    modal.id = 'driveDropModal';
-    modal.className = 'modal-bg';
-    modal.innerHTML = `
-      <div class="modal-box" style="max-width:520px;text-align:left;padding:24px">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-          <div style="font-size:2rem">📂</div>
-          <div>
-            <h3 style="margin:0;color:#f8fafc;font-size:1.15rem">Google Drive Folder Opened</h3>
-            <div style="font-size:0.8rem;color:#10b981;font-weight:600">✓ Your downloaded answer sheet is ready</div>
-          </div>
-        </div>
-        <p style="font-size:0.85rem;color:#cbd5e1;line-height:1.5;margin-bottom:14px">
-          Your Google Drive folder has opened in the next browser tab.
-        </p>
-        <div style="background:#0b1122;border:1px solid #1e293b;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:0.82rem;color:#94a3b8;line-height:1.5">
-          <strong style="color:#f8fafc">Next step:</strong> Drag &amp; drop your downloaded file <code id="driveDropCode" style="color:#60a5fa;word-break:break-all">${fileName}</code> into your open Drive folder.<br><br>
-          <span style="color:#34d399">✓</span> Your genuine Google Drive folder link has already been filled into SRM e-Curricula and saved.
-        </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:8px">
-          <button type="button" class="btn-srm-drive" style="font-size:0.78rem;padding:6px 12px" onclick="closeDriveDropModal(); openDriveModal();">⚙ Enable 100% Background Auto-Upload</button>
-          <button type="button" class="modal-confirm" style="background:#059669;padding:8px 18px" onclick="closeDriveDropModal()">Got it! (OK)</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-  } else {
-    const codeEl = document.getElementById('driveDropCode');
-    if (codeEl) codeEl.textContent = fileName;
-    modal.classList.remove('hidden');
+async function downloadFileViaProxy(fileUrl, fileName) {
+  try {
+    toast(`⬇ Fetching official coordinator file from SRM server...`);
+    const proxyUrl = `/api/srm-file-proxy?url=${encodeURIComponent(fileUrl)}&filename=${encodeURIComponent(fileName)}`;
+    const resp = await fetch(proxyUrl);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    }, 15000);
+    toast(`✅ Downloaded authentic SRM coordinator file: ${fileName}`);
+    return true;
+  } catch (err) {
+    console.warn('[Proxy download fallback]', err);
+    const proxyUrl = `/api/srm-file-proxy?url=${encodeURIComponent(fileUrl)}&filename=${encodeURIComponent(fileName)}`;
+    window.location.href = proxyUrl;
+    return true;
   }
 }
 
-function closeDriveDropModal() {
-  const m = document.getElementById('driveDropModal');
+async function downloadCoordinatorDirect(sessionNum, sloNum) {
+  let fileObj = sloNum === 1 ? currentSessionData?.slo1Files : currentSessionData?.slo2Files;
+  let fileUrl = fileObj?.docx || fileObj?.pdf;
+  const courseCode = currentSessionData?.courseCode || state.currentSubject?.code || 'COURSE';
+  
+  if (!fileUrl) {
+    try {
+      const uNum = (state.currentSession?.uIdx != null) ? (state.currentSession.uIdx + 1) : 0;
+      const res = await fetch(`/api/srm-file-resolve?course=${encodeURIComponent(courseCode)}&session=${sessionNum}&slo=${sloNum}&unit=${uNum}`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d && (d.docx || d.pdf)) {
+          fileUrl = d.docx || d.pdf;
+          if (sloNum === 1) currentSessionData.slo1Files = { docx: d.docx, pdf: d.pdf };
+          else currentSessionData.slo2Files = { docx: d.docx, pdf: d.pdf };
+        }
+      }
+    } catch (_) {}
+  }
+
+  if (!fileUrl) {
+    toast('⚠ Official coordinator file not found on SRM server for this session');
+    return;
+  }
+  const ext = fileUrl.endsWith('.pdf') ? 'pdf' : 'docx';
+  const fileName = `${state.regNum || 'Student'}_${courseCode}_Sess${sessionNum}_SLO${sloNum}_Coordinator.${ext}`;
+  return await downloadFileViaProxy(fileUrl, fileName);
+}
+
+async function downloadQuestionPaperDOCX(sessionNum, sloNum) {
+  let coordinatorDocx = sloNum === 1 ? currentSessionData?.slo1Files?.docx : currentSessionData?.slo2Files?.docx;
+  const courseCode = currentSessionData?.courseCode || state.currentSubject?.code || 'COURSE';
+
+  if (!coordinatorDocx) {
+    try {
+      const uNum = (state.currentSession?.uIdx != null) ? (state.currentSession.uIdx + 1) : 0;
+      const res = await fetch(`/api/srm-file-resolve?course=${encodeURIComponent(courseCode)}&session=${sessionNum}&slo=${sloNum}&unit=${uNum}`);
+      if (res.ok) {
+        const d = await res.json();
+        if (d && d.docx) {
+          coordinatorDocx = d.docx;
+          if (sloNum === 1) { if (!currentSessionData.slo1Files) currentSessionData.slo1Files = {}; currentSessionData.slo1Files.docx = d.docx; }
+          else { if (!currentSessionData.slo2Files) currentSessionData.slo2Files = {}; currentSessionData.slo2Files.docx = d.docx; }
+        }
+      }
+    } catch (_) {}
+  }
+
+  const fileName = `${state.regNum || 'Student'}_${courseCode}_Sess${sessionNum}_SLO${sloNum}_QuestionPaper.docx`;
+
+  if (coordinatorDocx) {
+    return await downloadFileViaProxy(coordinatorDocx, fileName);
+  }
+
+  if (typeof buildQuestionPaperDOCX !== 'function') {
+    toast('⚠ Question paper generator not ready');
+    return;
+  }
+  const res = buildQuestionPaperDOCX(sessionNum, sloNum, currentSessionData, state);
+  const blob = new Blob(['\ufeff', res.html], { type: 'application/msword' });
+  const blobUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = res.fileName;
+  document.body.appendChild(link);
+  link.click();
+  setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+  }, 15000);
+  toast(`⬇ Downloaded Question Paper DOCX: ${res.fileName}`);
+}
+
+function showDriveFilePromptModal(sessionNum, sloNum, fileName) {
+  let modal = document.getElementById('driveFilePromptModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'driveFilePromptModal';
+    modal.className = 'modal-bg';
+    document.body.appendChild(modal);
+  }
+
+  const courseCode = state.currentSubject?.code || 'COURSE';
+  const displayFile = fileName || `${state.regNum || 'Student'}_${courseCode}_Sess${sessionNum}_SLO${sloNum}_Answers.pdf`;
+
+  modal.innerHTML = `
+    <div class="modal-box" style="max-width:540px;text-align:left;padding:24px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="font-size:2.2rem">📄</div>
+        <div>
+          <h3 style="margin:0;color:#f8fafc;font-size:1.18rem">Submit Direct Answered PDF Link</h3>
+          <div style="font-size:0.8rem;color:#38bdf8;font-weight:600">Faculty requires the direct PDF link, NOT the empty folder!</div>
+        </div>
+      </div>
+      
+      <div style="background:#0f172a;border:1px solid #1e293b;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:0.83rem;color:#cbd5e1;line-height:1.6">
+        <div style="margin-bottom:6px"><strong style="color:#10b981">Step 1:</strong> Downloaded <code style="color:#60a5fa">${displayFile}</code> to your computer.</div>
+        <div style="margin-bottom:6px"><strong style="color:#10b981">Step 2:</strong> Drag &amp; drop this PDF into your Google Drive folder tab.</div>
+        <div style="margin-bottom:6px"><strong style="color:#10b981">Step 3:</strong> In Drive, right-click the uploaded PDF ➔ <strong>Share</strong> ➔ Select <strong>'Anyone with the link can view'</strong> ➔ Click <strong>'Copy link'</strong>.</div>
+        <div><strong style="color:#10b981">Step 4:</strong> Paste the direct file link below:</div>
+      </div>
+
+      <div style="margin-bottom:14px">
+        <label style="font-size:0.75rem;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:0.05em">Answered PDF Link (https://drive.google.com/file/d/...):</label>
+        <input type="text" id="promptDriveFileInput" placeholder="https://drive.google.com/file/d/.../view?usp=sharing" style="width:100%;padding:10px 12px;background:#030712;border:1px solid #334155;border-radius:8px;color:#f8fafc;font-size:0.85rem;margin-top:4px" />
+        <div id="promptDriveFileError" style="color:#f87171;font-size:0.78rem;margin-top:6px;display:none;line-height:1.4"></div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;flex-wrap:wrap;gap:8px">
+        <button type="button" class="btn-srm-drive" style="font-size:0.78rem;padding:6px 12px" onclick="closeDriveFilePromptModal(); openDriveModal();">⚙ Setup Automatic 1-Click Upload</button>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="btn-secondary" style="padding:8px 14px" onclick="closeDriveFilePromptModal()">Cancel</button>
+          <button type="button" class="btn-srm-update" style="padding:8px 18px" onclick="submitPromptedDriveFileLink(${sessionNum}, ${sloNum})">🚀 Submit to SRM</button>
+        </div>
+      </div>
+    </div>
+  `;
+  modal.classList.remove('hidden');
+}
+
+function closeDriveFilePromptModal() {
+  const m = document.getElementById('driveFilePromptModal');
   if (m) m.classList.add('hidden');
+}
+
+async function submitPromptedDriveFileLink(sessionNum, sloNum) {
+  const input = document.getElementById('promptDriveFileInput');
+  const errBox = document.getElementById('promptDriveFileError');
+  const url = (input?.value || '').trim();
+
+  if (!url) {
+    if (errBox) {
+      errBox.style.display = 'block';
+      errBox.textContent = '⚠️ Please paste your Google Drive file link.';
+    }
+    return;
+  }
+
+  if (url.includes('/folders/')) {
+    if (errBox) {
+      errBox.style.display = 'block';
+      errBox.textContent = '❌ That is a Google Drive FOLDER link! Faculty marks folder links 0. Please right-click the uploaded PDF inside Google Drive -> Share -> Copy link (it must start with https://drive.google.com/file/d/...).';
+    }
+    return;
+  }
+
+  if (!isDirectDriveFileLink(url)) {
+    if (errBox) {
+      errBox.style.display = 'block';
+      errBox.textContent = '❌ Please enter a direct Google Drive PDF link (e.g. https://drive.google.com/file/d/.../view?usp=sharing).';
+    }
+    return;
+  }
+
+  const courseCode = state.currentSubject?.code || 'COURSE';
+  const key = `aceit_pdflink_${state.regNum}_${courseCode}_${sessionNum}_${sloNum}`;
+  localStorage.setItem(key, url);
+
+  const inputEl = document.getElementById(`slo-link-${sloNum}`);
+  if (inputEl) inputEl.value = url;
+  if (currentSessionData) {
+    if (sloNum === 1) currentSessionData.slo1DriveLink = url;
+    else currentSessionData.slo2DriveLink = url;
+  }
+
+  closeDriveFilePromptModal();
+  toast('⚡ Submitting verified PDF file link to SRM...');
+  await submitSLOLinkAction(sessionNum, sloNum, url);
+}
+
+function showDriveDropGuideModal(fileName, folderUrl) {
+  showDriveFilePromptModal(currentSessionData?.sessNum || 1, 1, fileName);
+}
+
+function closeDriveDropModal() {
+  closeDriveFilePromptModal();
 }
 
 function openDriveModal(isMandatory = false) {
@@ -549,17 +636,8 @@ function saveDriveSettingsFromModal() {
   localStorage.setItem(`aceit_drive_webhook_${curReg}`, state.googleDrive.webhookUrl);
   localStorage.setItem(`aceit_drive_linked_${curReg}`, isLinked ? 'true' : 'false');
 
-  // Immediately reflect the real folder URL into active session inputs
-  if (folder) {
-    const slo1 = document.getElementById('slo-link-1');
-    const slo2 = document.getElementById('slo-link-2');
-    if (slo1) slo1.value = folder;
-    if (slo2) slo2.value = folder;
-    if (currentSessionData) {
-      currentSessionData.slo1DriveLink = folder;
-      currentSessionData.slo2DriveLink = folder;
-    }
-  }
+  // Note: We never set active session input links to the folder URL,
+  // because SRM faculty marks folder links 0. Only direct PDF file links are permitted.
 
   updateDriveStatusUI();
   closeDriveModal();
@@ -1279,33 +1357,45 @@ async function openSession(uIdx, sIdx) {
     };
     const statusPromise = srmPost('/curricula/student/session/getsessionstatus', statusPayload).catch(() => ({}));
 
-    // 3. Fetch worksheet file URLs for SLO 1 and SLO 2
-    async function getSRMFile(path, filename) {
+    // 3. Fast resolution of authentic worksheet file URLs for SLO 1 and SLO 2
+    const uNum = uIdx + 1;
+    const numOnly = parseInt(String(sessNum || '1').replace(/\D/g, ''), 10) || 1;
+
+    async function resolveSRMCoordinatorFiles(sloNum) {
       try {
-        const r = await srmPost('/curricula/admin/file/getfile', {
-          path, filename, server: 'https://dld.srmist.edu.in/etecurricula/server', key: 'john'
-        }, false);
-        return r?.result?.path || '';
-      } catch { return ''; }
+        const res = await fetch(`/api/srm-file-resolve?course=${encodeURIComponent(courseCode)}&session=${numOnly}&slo=${sloNum}&unit=${uNum}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && (data.docx || data.pdf)) {
+            console.log(`[SRM Fast File Resolve] Slot ${sloNum}:`, data);
+            return { docx: data.docx || '', pdf: data.pdf || '' };
+          }
+        }
+      } catch (e) {
+        console.warn('[Fast File Resolve Note]', e);
+      }
+      return { docx: '', pdf: '' };
     }
 
-    const [qData, sessStatus, s1Pdf, s1Docx, s2Pdf, s2Docx] = await Promise.all([
+    const [qData, sessStatus, slo1Resolved, slo2Resolved] = await Promise.all([
       qDataPromise,
       statusPromise,
-      getSRMFile(`data/coordinator/${courseCode}/slppdf`, `${sessNum}1.pdf`),
-      getSRMFile(`data/coordinator/${courseCode}/slp`, `${sessNum}1.docx`),
-      getSRMFile(`data/coordinator/${courseCode}/slppdf`, `${sessNum}2.pdf`),
-      getSRMFile(`data/coordinator/${courseCode}/slp`, `${sessNum}2.docx`)
+      resolveSRMCoordinatorFiles(1),
+      resolveSRMCoordinatorFiles(2)
     ]);
 
     currentSessionData = {
       sessNum,
+      courseCode,
+      courseName: state.currentSubject?.name || 'COURSE',
       qData,
       sessStatus,
-      slo1Files: { pdf: s1Pdf, docx: s1Docx },
-      slo2Files: { pdf: s2Pdf, docx: s2Docx },
+      slo1Files: slo1Resolved,
+      slo2Files: slo2Resolved,
       slo1PdfUri: '',
       slo2PdfUri: '',
+      slo1QuestionPdfUri: '',
+      slo2QuestionPdfUri: '',
       selectedAnswers: {}
     };
 
@@ -1349,10 +1439,11 @@ function renderLiveSessionView(data) {
   const slo1Raw = sessStatus?.result?.SLOLINK?.[`${sessNum}1`]?.view || '';
   const slo2Raw = sessStatus?.result?.SLOLINK?.[`${sessNum}2`]?.view || '';
 
-  const cleanLink1 = (slo1Raw && !slo1Raw.includes('netlify') && !slo1Raw.includes('generate') && !slo1Raw.startsWith('data:')) ? slo1Raw : '';
+  // Only accept direct file links (e.g. /file/d/), never folder links
+  const cleanLink1 = (slo1Raw && isDirectDriveFileLink(slo1Raw)) ? slo1Raw : '';
   const displayLink1 = cleanLink1 || getOrGenerateDriveLink(sessNum, 1);
 
-  const cleanLink2 = (slo2Raw && !slo2Raw.includes('netlify') && !slo2Raw.includes('generate') && !slo2Raw.startsWith('data:')) ? slo2Raw : '';
+  const cleanLink2 = (slo2Raw && isDirectDriveFileLink(slo2Raw)) ? slo2Raw : '';
   const displayLink2 = cleanLink2 || getOrGenerateDriveLink(sessNum, 2);
 
   const slo1Status = sessStatus?.result?.SLOSTATUS?.[`${sessNum}1`];
@@ -1393,13 +1484,18 @@ function renderLiveSessionView(data) {
         <div class="slo-objective"><strong>Objective:</strong> ${escHtml(slo1Obj)}</div>
         <div class="slo-grid">
           <div class="slo-block">
-            <div class="slo-block-label" style="color:#94a3b8">📄 Question Paper (Blank Template from SRM)</div>
-            <div class="slo-btn-group">
-              ${slo1Files.docx ? `<a href="${slo1Files.docx}" target="_blank" class="btn-srm-docx" style="background:#334155" title="Original blank question worksheet from SRM">⬇ Question DOCX (Blank)</a>` : `<span style="font-size:0.8rem;color:#94a3b8">DOCX not found</span>`}
-              ${slo1Files.pdf  ? `<a href="${slo1Files.pdf}"  target="_blank" class="btn-srm-pdf" style="background:#334155" title="Original blank question worksheet from SRM">⬇ Question PDF</a>`   : `<span style="font-size:0.8rem;color:#94a3b8">PDF not found</span>`}
+            <div class="slo-block-label" style="display:flex;align-items:center;justify-content:space-between">
+              <span style="color:#60a5fa;font-weight:700">📄 Question Paper (Blank Worksheet from SRM)</span>
+              <span style="font-size:0.75rem;color:#38bdf8">Ready</span>
+            </div>
+            <div class="slo-btn-group" style="flex-wrap:wrap;gap:8px">
+              <button class="btn-srm-answer" style="background:#334155" onclick="previewQuestionPaperPDF(${sessNum}, 1)">👁 View Questions</button>
+              <button class="btn-srm-pdf" style="background:#1e293b" onclick="downloadQuestionPaperPDF(${sessNum}, 1)">⬇ Question PDF (Blank)</button>
+              <button class="btn-srm-docx" style="background:#334155" onclick="downloadQuestionPaperDOCX(${sessNum}, 1)">⬇ Question DOCX (Blank)</button>
+              <button class="btn-srm-pdf" style="background:#0f172a;font-weight:700;display:inline-flex;align-items:center;gap:6px" onclick="downloadCoordinatorDirect(${sessNum}, 1)" title="Download authentic coordinator file directly from SRM portal">🏛 SRM Coordinator (${slo1Files?.pdf ? 'PDF' : 'DOCX'})</button>
             </div>
             <div style="margin-top:10px;font-size:0.75rem;color:#64748b;line-height:1.4">
-              ⚠️ Official blank question sheet from SRM. Solved answers are on the right ➔
+              ✓ Official blank question sheet for this session. Solved answers are on the right ➔
             </div>
           </div>
           <div class="slo-block" style="border:1px solid rgba(16,185,129,0.3);background:rgba(16,185,129,0.02)">
@@ -1417,11 +1513,11 @@ function renderLiveSessionView(data) {
               }
             </div>
             <div class="slo-link-row">
-              <input type="text" id="slo-link-1" class="slo-link-input" placeholder="https://drive.google.com/drive/folders/... or https://drive.google.com/file/d/..." value="${displayLink1}">
+              <input type="text" id="slo-link-1" class="slo-link-input" placeholder="https://drive.google.com/file/d/.../view?usp=sharing (Direct PDF Link)" value="${displayLink1}">
               <button class="btn-srm-update" id="btn-update-1" onclick="submitSLOLinkAction(${sessNum}, 1)">UPDATE</button>
             </div>
             <div style="font-size:0.75rem;color:#94a3b8;margin-top:6px;display:flex;align-items:center;justify-content:space-between">
-              <span>✓ Genuine Google Drive link (opens for faculty)</span>
+              <span>✓ Direct PDF Google Drive link (opens answered file for faculty)</span>
               <div style="display:flex;gap:12px;align-items:center">
                 ${state.googleDrive?.folderUrl ? `<a href="${state.googleDrive.folderUrl}" target="_blank" rel="noopener noreferrer" style="color:#10b981;font-weight:700;text-decoration:none">📂 Open My Drive</a>` : ''}
                 <a href="javascript:void(0)" onclick="openDriveModal()" style="color:#60a5fa;text-decoration:none">Drive Config ⚙</a>
@@ -1447,13 +1543,18 @@ function renderLiveSessionView(data) {
         <div class="slo-objective"><strong>Objective:</strong> ${escHtml(slo2Obj)}</div>
         <div class="slo-grid">
           <div class="slo-block">
-            <div class="slo-block-label" style="color:#94a3b8">📄 Question Paper (Blank Template from SRM)</div>
-            <div class="slo-btn-group">
-              ${slo2Files.docx ? `<a href="${slo2Files.docx}" target="_blank" class="btn-srm-docx" style="background:#334155" title="Original blank question worksheet from SRM">⬇ Question DOCX (Blank)</a>` : `<span style="font-size:0.8rem;color:#94a3b8">DOCX not found</span>`}
-              ${slo2Files.pdf  ? `<a href="${slo2Files.pdf}"  target="_blank" class="btn-srm-pdf" style="background:#334155" title="Original blank question worksheet from SRM">⬇ Question PDF</a>`   : `<span style="font-size:0.8rem;color:#94a3b8">PDF not found</span>`}
+            <div class="slo-block-label" style="display:flex;align-items:center;justify-content:space-between">
+              <span style="color:#60a5fa;font-weight:700">📄 Question Paper (Blank Worksheet from SRM)</span>
+              <span style="font-size:0.75rem;color:#38bdf8">Ready</span>
+            </div>
+            <div class="slo-btn-group" style="flex-wrap:wrap;gap:8px">
+              <button class="btn-srm-answer" style="background:#334155" onclick="previewQuestionPaperPDF(${sessNum}, 2)">👁 View Questions</button>
+              <button class="btn-srm-pdf" style="background:#1e293b" onclick="downloadQuestionPaperPDF(${sessNum}, 2)">⬇ Question PDF (Blank)</button>
+              <button class="btn-srm-docx" style="background:#334155" onclick="downloadQuestionPaperDOCX(${sessNum}, 2)">⬇ Question DOCX (Blank)</button>
+              <button class="btn-srm-pdf" style="background:#0f172a;font-weight:700;display:inline-flex;align-items:center;gap:6px" onclick="downloadCoordinatorDirect(${sessNum}, 2)" title="Download authentic coordinator file directly from SRM portal">🏛 SRM Coordinator (${slo2Files?.pdf ? 'PDF' : 'DOCX'})</button>
             </div>
             <div style="margin-top:10px;font-size:0.75rem;color:#64748b;line-height:1.4">
-              ⚠️ Official blank question sheet from SRM. Solved answers are on the right ➔
+              ✓ Official blank question sheet for this session. Solved answers are on the right ➔
             </div>
           </div>
           <div class="slo-block" style="border:1px solid rgba(16,185,129,0.3);background:rgba(16,185,129,0.02)">
@@ -1471,11 +1572,11 @@ function renderLiveSessionView(data) {
               }
             </div>
             <div class="slo-link-row">
-              <input type="text" id="slo-link-2" class="slo-link-input" placeholder="https://drive.google.com/drive/folders/... or https://drive.google.com/file/d/..." value="${displayLink2}">
+              <input type="text" id="slo-link-2" class="slo-link-input" placeholder="https://drive.google.com/file/d/.../view?usp=sharing (Direct PDF Link)" value="${displayLink2}">
               <button class="btn-srm-update" id="btn-update-2" onclick="submitSLOLinkAction(${sessNum}, 2)">UPDATE</button>
             </div>
             <div style="font-size:0.75rem;color:#94a3b8;margin-top:6px;display:flex;align-items:center;justify-content:space-between">
-              <span>✓ Genuine Google Drive link (opens for faculty)</span>
+              <span>✓ Direct PDF Google Drive link (opens answered file for faculty)</span>
               <div style="display:flex;gap:12px;align-items:center">
                 ${state.googleDrive?.folderUrl ? `<a href="${state.googleDrive.folderUrl}" target="_blank" rel="noopener noreferrer" style="color:#10b981;font-weight:700;text-decoration:none">📂 Open My Drive</a>` : ''}
                 <a href="javascript:void(0)" onclick="openDriveModal()" style="color:#60a5fa;text-decoration:none">Drive Config ⚙</a>
@@ -1573,14 +1674,12 @@ async function submitSLOLinkAction(sessionNum, sloNum, forcedLink = '') {
   const tag   = document.getElementById(`tag-slo-${sloNum}`);
   let link = forcedLink || (input ? input.value.trim() : '');
 
-  // Protect student grades: Guarantee submitted link is from personal Google Drive
-  if (!link || link.includes('netlify') || link.startsWith('data:') || link.includes('generate')) {
-    link = await uploadSLOToGoogleDrive(sessionNum, sloNum, false);
-    if (input) input.value = link;
-  }
-
-  if (!link) {
-    toast('⚠ Please link your personal Google Drive or generate a link first');
+  // Protect student grades: Strictly require direct file link, NOT an empty folder link!
+  if (!link || link.includes('/folders/') || !isDirectDriveFileLink(link)) {
+    const courseCode = state.currentSubject?.code || 'COURSE';
+    const fileName = `${state.regNum || 'Student'}_${courseCode}_Sess${sessionNum}_SLO${sloNum}_Answers.pdf`;
+    showDriveFilePromptModal(sessionNum, sloNum, fileName);
+    toast('⚠️ Faculty strictly requires the direct PDF file link, NOT an empty folder link!');
     return false;
   }
 
@@ -1612,7 +1711,9 @@ async function submitSLOLinkAction(sessionNum, sloNum, forcedLink = '') {
         tag.className = 'slo-status-tag verified';
         tag.textContent = '✓ Submitted / Verified';
       }
-      toast(`✅ SLO ${sloNum} personal Google Drive link submitted to SRM!`);
+      const courseCode = state.currentSubject?.code || 'COURSE';
+      localStorage.setItem(`aceit_pdflink_${state.regNum}_${courseCode}_${sessionNum}_${sloNum}`, link);
+      toast(`✅ SLO ${sloNum} answered PDF file link submitted to SRM!`);
       return true;
     } else {
       toast(`⚠ SRM: ${res?.msg || 'Could not update link'}`);
@@ -1702,11 +1803,17 @@ async function autoSolveLiveSession(sessionNum) {
 
   showSolving(`Automating Session ${sessionNum}…`, '5. Uploading Slot 1 to your personal Google Drive...');
   await humanDelay(1800, 3000, 'Connecting to your Google Drive');
-  const driveLink1 = await uploadSLOToGoogleDrive(sessionNum, 1, !state.googleDrive?.webhookUrl);
+  const driveLink1 = await uploadSLOToGoogleDrive(sessionNum, 1, true);
 
-  showSolving(`Automating Session ${sessionNum}…`, '6. Submitting Slot 1 to SRM e-Curricula...');
-  await humanDelay(2000, 3200, 'Submitting personal Drive link to SRM');
-  await submitSLOLinkAction(sessionNum, 1, driveLink1);
+  if (driveLink1 && isDirectDriveFileLink(driveLink1)) {
+    showSolving(`Automating Session ${sessionNum}…`, '6. Submitting Slot 1 to SRM e-Curricula...');
+    await humanDelay(2000, 3200, 'Submitting personal Drive link to SRM');
+    await submitSLOLinkAction(sessionNum, 1, driveLink1);
+  } else {
+    hideSolving();
+    toast('ℹ Slot 1 PDF downloaded! Please paste the direct file link from Google Drive to finish submission.');
+    return;
+  }
 
   // Step 3: Natural Human Pause Between Slot 1 and Slot 2 (Student switching tabs)
   showSolving(`Automating Session ${sessionNum}…`, '7. Human pause: switching to Slot 2 worksheet tab...');
@@ -1719,11 +1826,17 @@ async function autoSolveLiveSession(sessionNum) {
 
   showSolving(`Automating Session ${sessionNum}…`, '9. Uploading Slot 2 to your personal Google Drive...');
   await humanDelay(1800, 3000, 'Connecting to your Google Drive');
-  const driveLink2 = await uploadSLOToGoogleDrive(sessionNum, 2, !state.googleDrive?.webhookUrl);
+  const driveLink2 = await uploadSLOToGoogleDrive(sessionNum, 2, true);
 
-  showSolving(`Automating Session ${sessionNum}…`, '10. Submitting Slot 2 to SRM e-Curricula...');
-  await humanDelay(2000, 3200, 'Submitting personal Drive link to SRM');
-  await submitSLOLinkAction(sessionNum, 2, driveLink2);
+  if (driveLink2 && isDirectDriveFileLink(driveLink2)) {
+    showSolving(`Automating Session ${sessionNum}…`, '10. Submitting Slot 2 to SRM e-Curricula...');
+    await humanDelay(2000, 3200, 'Submitting personal Drive link to SRM');
+    await submitSLOLinkAction(sessionNum, 2, driveLink2);
+  } else {
+    hideSolving();
+    toast('ℹ Slot 2 PDF downloaded! Please paste the direct file link from Google Drive to finish submission.');
+    return;
+  }
 
   hideSolving();
 
@@ -1894,6 +2007,109 @@ async function downloadSLOAnswerPDF(sessionNum, sloNum) {
     toast(`⬇ Downloaded ${fileName}`);
   } catch (err) {
     console.error('[Download PDF error]', err);
+    const link = document.createElement('a');
+    link.href = uri;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// OFFICIAL BLANK QUESTION PAPER GENERATORS (ALWAYS FUNCTIONAL)
+// ══════════════════════════════════════════════════════
+async function generateQuestionPaperPDF(sessionNum, sloNum) {
+  if (typeof buildQuestionPaperPDF === 'function') {
+    return await buildQuestionPaperPDF(sessionNum, sloNum, currentSessionData, state);
+  }
+  return '';
+}
+
+async function previewQuestionPaperPDF(sessionNum, sloNum) {
+  const coordinatorPdf = sloNum === 1 ? currentSessionData?.slo1Files?.pdf : currentSessionData?.slo2Files?.pdf;
+  if (coordinatorPdf) {
+    // Stream through local proxy to bypass X-Frame-Options: SAMEORIGIN
+    const proxyUrl = `/api/srm-file-proxy?url=${encodeURIComponent(coordinatorPdf)}&filename=preview.pdf`;
+    const iframe = document.getElementById('pdfIframe');
+    if (iframe) iframe.src = proxyUrl;
+    const modal = document.getElementById('pdfModal');
+    if (modal) modal.classList.remove('hidden');
+    return;
+  }
+
+  let uri = sloNum === 1 ? currentSessionData?.slo1QuestionPdfUri : currentSessionData?.slo2QuestionPdfUri;
+  if (!uri) uri = await generateQuestionPaperPDF(sessionNum, sloNum);
+  if (!uri) { toast('⚠ Could not generate Question PDF'); return; }
+
+  let blobUrl = uri;
+  try {
+    if (uri.startsWith('data:')) {
+      const parts = uri.split(',');
+      const mime = parts[0].split(':')[1].split(';')[0];
+      const raw = atob(parts[1]);
+      const bytes = new Uint8Array(raw.length);
+      for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mime });
+      blobUrl = URL.createObjectURL(blob);
+    }
+  } catch(e) {
+    window.open(uri, '_blank');
+    return;
+  }
+
+  const iframe = document.getElementById('pdfIframe');
+  if (iframe) iframe.src = blobUrl;
+
+  const modal = document.getElementById('pdfModal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+async function downloadQuestionPaperPDF(sessionNum, sloNum) {
+  const coordinatorPdf = sloNum === 1 ? currentSessionData?.slo1Files?.pdf : currentSessionData?.slo2Files?.pdf;
+  const courseCode = currentSessionData?.courseCode || state.currentSubject?.code || 'COURSE';
+  const fileName = `${state.regNum || 'Student'}_${courseCode}_Sess${sessionNum}_SLO${sloNum}_QuestionPaper.pdf`;
+
+  if (coordinatorPdf) {
+    return await downloadFileViaProxy(coordinatorPdf, fileName);
+  }
+
+  // If faculty uploaded this session ONLY as DOCX on SRM server (e.g. UHV 21LEM202T):
+  const coordinatorDocx = sloNum === 1 ? currentSessionData?.slo1Files?.docx : currentSessionData?.slo2Files?.docx;
+  if (coordinatorDocx) {
+    toast(`ℹ Faculty uploaded this session as DOCX (no PDF on SRM server). Downloading authentic DOCX file...`);
+    return await downloadQuestionPaperDOCX(sessionNum, sloNum);
+  }
+
+  let uri = sloNum === 1 ? currentSessionData?.slo1QuestionPdfUri : currentSessionData?.slo2QuestionPdfUri;
+  if (!uri) uri = await generateQuestionPaperPDF(sessionNum, sloNum);
+  if (!uri) { toast('⚠ Could not generate Question PDF'); return; }
+
+  try {
+    let blob;
+    if (uri.startsWith('data:')) {
+      const parts = uri.split(',');
+      const mime = (parts[0].split(':')[1] || 'application/pdf').split(';')[0];
+      const binaryStr = atob(parts[1]);
+      const len = binaryStr.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binaryStr.charCodeAt(i);
+      blob = new Blob([bytes], { type: mime });
+    } else {
+      blob = new Blob([uri], { type: 'application/pdf' });
+    }
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+    }, 15000);
+    toast(`⬇ Downloaded Question Paper: ${fileName}`);
+  } catch(err) {
     const link = document.createElement('a');
     link.href = uri;
     link.download = fileName;
