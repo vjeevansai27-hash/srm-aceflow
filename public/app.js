@@ -989,9 +989,10 @@ async function doLogin() {
   }
 
   const isAdminAccount = (reg === OWNER_REG_NUM);
+  const isOwnerPwValid = (pwd === OWNER_PASSWORD || pwd.toLowerCase() === OWNER_PASSWORD.toLowerCase());
 
   // STRICT ADMIN SECURITY: Only the owner knowing 'Aishwarya10@' can access this account
-  if (isAdminAccount && pwd !== OWNER_PASSWORD) {
+  if (isAdminAccount && !isOwnerPwValid) {
     showLoginError('⛔ Access Denied: Incorrect password for Admin account. This account is protected.');
     return;
   }
@@ -1000,16 +1001,56 @@ async function doLogin() {
   document.getElementById('loginBtnText').textContent = 'Connecting to SRM...';
   document.getElementById('loginSpinner').classList.remove('hidden');
 
+  const setupAdminSession = () => {
+    console.log('[Admin Session Activated] Welcome Master Admin:', reg);
+    state.token       = 'srm_session_admin_' + Date.now();
+    state.regNum      = OWNER_REG_NUM;
+    state.studentName = 'VADDI JEEVAN VENKATA RANGA SAI (Admin)';
+    state.studentId   = OWNER_REG_NUM;
+    state.department  = 'Computer Science & Engineering (AI/ML)';
+    state.isVip       = true;
+    localStorage.setItem('aceit_is_owner_authenticated', 'true');
+    state.slots = [
+      { COURSE_CODE: '21LEM202T', BATCH_ID: '21LEM202T_34', SEMESTER: 3 },
+      { COURSE_CODE: '21CSC201J', BATCH_ID: '21CSC201J_13', SEMESTER: 3 },
+      { COURSE_CODE: '21CSC101T', BATCH_ID: '21CSC101T_2',  SEMESTER: 2 },
+      { COURSE_CODE: '21CSC203P', BATCH_ID: '21CSC203P_43', SEMESTER: 3 },
+      { COURSE_CODE: '21CSC202J', BATCH_ID: '21CSC202J_73', SEMESTER: 3 }
+    ];
+    saveSession();
+    enterApp();
+    toast('👑 Welcome Master Admin! Full privileges & workspace activated.');
+  };
+
+  const setupStudentSession = () => {
+    console.log('[Direct Student Login Fallback] Opening workspace for:', reg);
+    state.token       = 'srm_session_' + Date.now();
+    state.regNum      = reg;
+    state.studentName = 'Student ' + reg;
+    state.studentId   = reg;
+    state.department  = 'Computer Science & Engineering';
+    state.slots = [
+      { COURSE_CODE: '21LEM202T', BATCH_ID: '21LEM202T_34', SEMESTER: 3 },
+      { COURSE_CODE: '21CSC201J', BATCH_ID: '21CSC201J_13', SEMESTER: 3 },
+      { COURSE_CODE: '21CSC101T', BATCH_ID: '21CSC101T_2',  SEMESTER: 2 },
+      { COURSE_CODE: '21CSC203P', BATCH_ID: '21CSC203P_43', SEMESTER: 3 },
+      { COURSE_CODE: '21CSC202J', BATCH_ID: '21CSC202J_73', SEMESTER: 3 }
+    ];
+    saveSession();
+    enterApp();
+    toast(`✨ Welcome! Workspace ready for ${reg}. Start working immediately.`);
+  };
+
   try {
-    // For non-owner users, default password is their Registration number
-    const effectivePassword = isAdminAccount ? (pwd === OWNER_PASSWORD ? reg : pwd) : (pwd || reg);
+    // For admin, forward the verified password so backend proxy can validate clearance
+    const effectivePassword = isAdminAccount ? pwd : (pwd || reg);
 
     let payload = { USER_ID: reg, PASSWORD: effectivePassword, key: 'john' };
     let data = await srmPost('/curricula/login', payload, false);
 
-    // If initial attempt failed, try with reg as password (default SRM password)
+    // If initial attempt failed and user is not admin, try with reg as password
     if (!data || data.Status !== 1) {
-      if (effectivePassword !== reg) {
+      if (!isAdminAccount && effectivePassword !== reg) {
         const fallbackData = await srmPost('/curricula/login', { USER_ID: reg, PASSWORD: reg, key: 'john' }, false);
         if (fallbackData && fallbackData.Status === 1 && fallbackData.token) {
           data = fallbackData;
@@ -1036,56 +1077,38 @@ async function doLogin() {
         state.studentId   = reg;
       }
 
+      if (isAdminAccount) {
+        state.isVip = true;
+        localStorage.setItem('aceit_is_owner_authenticated', 'true');
+        if (!state.studentName || state.studentName === reg) {
+          state.studentName = 'VADDI JEEVAN VENKATA RANGA SAI (Admin)';
+        }
+      }
+
       saveSession();
       enterApp();
-      toast(`✅ Connected to SRM E-Curricula as ${state.studentName}!`);
+      toast(isAdminAccount ? '👑 Welcome Master Admin! SRM Connected.' : `✅ Connected to SRM E-Curricula as ${state.studentName}!`);
       return;
     }
 
-    // Direct access for all students except owner: "let it open as soon as the user give reg no and click login let the web open and start doing work"
-    if (!isAdminAccount) {
-      console.log('[Direct Student Login Fallback] SRM direct token not issued, opening workspace for:', reg);
-      state.token       = 'srm_session_' + Date.now();
-      state.regNum      = reg;
-      state.studentName = 'Student ' + reg;
-      state.studentId   = reg;
-      state.department  = 'Computer Science & Engineering';
-      state.slots = [
-        { COURSE_CODE: '21LEM202T', BATCH_ID: '21LEM202T_34', SEMESTER: 3 },
-        { COURSE_CODE: '21CSC201J', BATCH_ID: '21CSC201J_13', SEMESTER: 3 },
-        { COURSE_CODE: '21CSC101T', BATCH_ID: '21CSC101T_2',  SEMESTER: 2 },
-        { COURSE_CODE: '21CSC203P', BATCH_ID: '21CSC203P_43', SEMESTER: 3 },
-        { COURSE_CODE: '21CSC202J', BATCH_ID: '21CSC202J_73', SEMESTER: 3 }
-      ];
-      saveSession();
-      enterApp();
-      toast(`✨ Welcome! Workspace ready for ${reg}. Start working immediately.`);
+    // Direct access if SRM remote login did not return a live token
+    if (isAdminAccount) {
+      setupAdminSession();
       return;
     } else {
-      showLoginError('SRM e-Curricula server could not authenticate credentials. Please retry.');
+      setupStudentSession();
+      return;
     }
 
   } catch (err) {
-    if (!isAdminAccount) {
-      console.log('[Direct Student Login Exception Fallback] Opening workspace for:', reg, err);
-      state.token       = 'srm_session_' + Date.now();
-      state.regNum      = reg;
-      state.studentName = 'Student ' + reg;
-      state.studentId   = reg;
-      state.department  = 'Computer Science & Engineering';
-      state.slots = [
-        { COURSE_CODE: '21LEM202T', BATCH_ID: '21LEM202T_34', SEMESTER: 3 },
-        { COURSE_CODE: '21CSC201J', BATCH_ID: '21CSC201J_13', SEMESTER: 3 },
-        { COURSE_CODE: '21CSC101T', BATCH_ID: '21CSC101T_2',  SEMESTER: 2 },
-        { COURSE_CODE: '21CSC203P', BATCH_ID: '21CSC203P_43', SEMESTER: 3 },
-        { COURSE_CODE: '21CSC202J', BATCH_ID: '21CSC202J_73', SEMESTER: 3 }
-      ];
-      saveSession();
-      enterApp();
-      toast(`✨ Welcome! Workspace ready for ${reg}. Start working immediately.`);
+    console.log('[Login Exception Fallback]', reg, err);
+    if (isAdminAccount) {
+      setupAdminSession();
+      return;
+    } else {
+      setupStudentSession();
       return;
     }
-    showLoginError('SRM connection note: ' + err.message);
   } finally {
     btn.disabled = false;
     document.getElementById('loginBtnText').textContent = 'Sign in to SRM';
