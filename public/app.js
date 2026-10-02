@@ -2419,6 +2419,94 @@ function useBuiltinKey() {
 }
 
 // ══════════════════════════════════════════════════════
+// MATHPIX SNIP LATEX ENGINE SETTINGS
+// ══════════════════════════════════════════════════════
+function saveMathpixSettings() {
+  const appId = (document.getElementById('settingsMathpixAppId')?.value || '').trim();
+  const appKey = (document.getElementById('settingsMathpixAppKey')?.value || '').trim();
+  const statusEl = document.getElementById('settingsMathpixStatus');
+
+  if (!appId && !appKey) {
+    localStorage.removeItem('aceit_mathpix_app_id');
+    localStorage.removeItem('aceit_mathpix_app_key');
+    if (statusEl) {
+      statusEl.className = 'key-status ok';
+      statusEl.textContent = '✓ Using Built-in High-Resolution LaTeX & Academic Vector Engine';
+    }
+    toast('✓ Mathpix Cloud keys cleared. Using built-in High-Res LaTeX engine.');
+    return;
+  }
+
+  localStorage.setItem('aceit_mathpix_app_id', appId);
+  localStorage.setItem('aceit_mathpix_app_key', appKey);
+
+  if (statusEl) {
+    statusEl.className = 'key-status ok';
+    statusEl.textContent = '✓ Mathpix Cloud Credentials Saved! Cloud LaTeX PDF active.';
+  }
+  toast('✓ Mathpix App ID & App Key saved!');
+}
+
+async function testMathpixConnection() {
+  const appId = (document.getElementById('settingsMathpixAppId')?.value || localStorage.getItem('aceit_mathpix_app_id') || '').trim();
+  const appKey = (document.getElementById('settingsMathpixAppKey')?.value || localStorage.getItem('aceit_mathpix_app_key') || '').trim();
+  const statusEl = document.getElementById('settingsMathpixStatus');
+
+  if (!appId || !appKey) {
+    toast('ℹ Please enter both Mathpix App ID and App Key from console.mathpix.com');
+    return;
+  }
+
+  if (statusEl) {
+    statusEl.className = 'key-status';
+    statusEl.textContent = '⏳ Testing connection to Mathpix Cloud Converter...';
+  }
+
+  try {
+    const res = await fetch('/api/mathpix-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mmd: '# Mathpix Snip LaTeX Test\n$$E = mc^2$$\nCandidate Academic Verification.',
+        appId,
+        appKey
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.success && data.pdfDataUri) {
+      if (statusEl) {
+        statusEl.className = 'key-status ok';
+        statusEl.textContent = '🎉 Connected to Mathpix Cloud! High-Resolution LaTeX PDF enabled.';
+      }
+      toast('🎉 Mathpix Cloud connected successfully!');
+    } else {
+      if (statusEl) {
+        statusEl.className = 'key-status err';
+        statusEl.textContent = '⚠ ' + (data.error || 'Connection failed. Verify your App ID & Key.');
+      }
+      toast('⚠ ' + (data.error || 'Mathpix connection failed'));
+    }
+  } catch (err) {
+    if (statusEl) {
+      statusEl.className = 'key-status err';
+      statusEl.textContent = '⚠ Connection error: ' + err.message;
+    }
+    toast('⚠ Mathpix connection error: ' + err.message);
+  }
+}
+
+function exportMathpixFromPreview() {
+  const sess = currentSessionData?.sessionNum || 1;
+  const slo = currentSessionData?.currentSlo || 1;
+  if (typeof downloadSessionMathpixMMD === 'function') {
+    downloadSessionMathpixMMD(sess, slo, currentSessionData, state);
+    toast('📝 Downloaded Mathpix Markdown (.mmd) for snip.mathpix.com');
+  } else {
+    toast('⚠ Mathpix exporter unavailable');
+  }
+}
+
+// ══════════════════════════════════════════════════════
 // DAILY QUOTA SYSTEM (10 WORKSHEETS / DAY LIMIT)
 // ══════════════════════════════════════════════════════
 function getTodayDateStr() {
@@ -3038,6 +3126,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (s) { s.className = 'key-status ok'; s.textContent = '✓ Custom Gemini Key Connected'; }
   } else {
     if (s) { s.className = 'key-status ok'; s.textContent = '✓ Active: Using Built-in Solver Engine'; }
+  }
+
+  // Populate Mathpix status
+  const savedMathpixId = localStorage.getItem('aceit_mathpix_app_id');
+  const savedMathpixKey = localStorage.getItem('aceit_mathpix_app_key');
+  const mpIdInput = document.getElementById('settingsMathpixAppId');
+  const mpKeyInput = document.getElementById('settingsMathpixAppKey');
+  const mpStatus = document.getElementById('settingsMathpixStatus');
+  if (savedMathpixId && mpIdInput) mpIdInput.value = savedMathpixId;
+  if (savedMathpixKey && mpKeyInput) mpKeyInput.value = savedMathpixKey;
+  if (mpStatus) {
+    if (savedMathpixId && savedMathpixKey) {
+      mpStatus.className = 'key-status ok';
+      mpStatus.textContent = '✓ Mathpix Cloud LaTeX Converter Connected';
+    } else {
+      mpStatus.className = 'key-status ok';
+      mpStatus.textContent = '✓ Built-in High-Resolution LaTeX & Academic Vector Engine Active';
+    }
   }
 
   updateOwnerAccessVisibility();

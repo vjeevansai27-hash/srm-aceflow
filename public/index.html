@@ -431,6 +431,34 @@
           </div>
           <div id="settingsKeyStatus" class="key-status"></div>
         </div>
+
+        <!-- MATHPIX SNIP HIGH-RESOLUTION LATEX ENGINE SECTION -->
+        <div class="settings-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <h3 style="margin-bottom:0">Mathpix Snip &amp; LaTeX PDF Engine</h3>
+            <span id="settingsMathpixBadge" style="background:rgba(124,58,237,0.15);color:#a78bfa;font-weight:700;font-size:0.75rem;padding:4px 10px;border-radius:100px;border:1px solid rgba(124,58,237,0.3)">🟣 High-Res LaTeX Active</span>
+          </div>
+          <p>Worksheet answers are formatted using Mathpix-style academic typography (Times Roman serif, Courier code boxes with line numbers, mathematical notation, and faculty grading records). You can also link your official <a href="https://snip.mathpix.com/home" target="_blank" style="color:#a78bfa;text-decoration:underline">Mathpix Snip account</a> below to compile PDFs via the Mathpix Cloud API.</p>
+
+          <div style="display:grid;gap:12px;margin-top:14px">
+            <div>
+              <label style="display:block;font-size:0.8rem;color:#94a3b8;margin-bottom:4px;font-weight:600">Mathpix App ID (Optional)</label>
+              <input type="text" id="settingsMathpixAppId" class="slo-link-input" placeholder="e.g. your_mathpix_app_id" style="width:100%"/>
+            </div>
+
+            <div>
+              <label style="display:block;font-size:0.8rem;color:#94a3b8;margin-bottom:4px;font-weight:600">Mathpix App Key (Optional)</label>
+              <div style="display:flex;gap:8px">
+                <input type="password" id="settingsMathpixAppKey" class="slo-link-input" placeholder="e.g. your_mathpix_app_key" style="flex:1"/>
+                <button class="solve-all-btn" style="padding:8px 14px;background:#7c3aed" onclick="saveMathpixSettings()">Save Mathpix</button>
+                <button class="btn-srm-drive" onclick="testMathpixConnection()">Test API</button>
+              </div>
+              <div style="font-size:0.75rem;color:#64748b;margin-top:4px">Obtain your App ID &amp; App Key from <a href="https://console.mathpix.com/orgs" target="_blank" style="color:#a78bfa;text-decoration:underline">console.mathpix.com</a>. Leave blank to use the built-in high-resolution LaTeX engine.</div>
+            </div>
+          </div>
+          <div id="settingsMathpixStatus" class="key-status ok" style="margin-top:10px">✓ Built-in High-Resolution LaTeX &amp; Academic Vector Engine Active</div>
+        </div>
+
         <!-- GOOGLE DRIVE SYNC SECTION -->
         <div class="settings-section">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -762,8 +790,9 @@
     <!-- PDF toolbar -->
     <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#111827;flex-shrink:0">
       <div style="color:#fff;font-size:0.95rem;font-weight:700">📄 Answer Sheet Preview</div>
-      <div style="display:flex;gap:10px">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
         <button onclick="downloadPDF()" style="background:#1a3de4;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:0.85rem;font-weight:600;cursor:pointer">⬇ Download PDF</button>
+        <button onclick="exportMathpixFromPreview()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.85rem;font-weight:600;cursor:pointer" title="Download Mathpix Markdown (.mmd) for snip.mathpix.com">📝 Export Mathpix MMD</button>
         <button onclick="submitFromPreview()" style="background:#059669;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:0.85rem;font-weight:600;cursor:pointer">✅ Submit to SRM</button>
         <button onclick="closePDFModal()" style="background:#374151;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.85rem;cursor:pointer">✕ Close</button>
       </div>
