@@ -761,12 +761,23 @@ function saveSession() {
   localStorage.setItem('aceit_sid',   state.studentId);
   localStorage.setItem('aceit_name',  state.studentName);
   localStorage.setItem('aceit_reg',   state.regNum);
+  if (state.slots && state.slots.length > 0) {
+    localStorage.setItem('aceit_slots', JSON.stringify(state.slots));
+  }
+  if (state.department) {
+    localStorage.setItem('aceit_dept', state.department);
+  }
 }
 function loadSession() {
   state.token       = localStorage.getItem('aceit_token') || '';
   state.studentId   = localStorage.getItem('aceit_sid')   || '';
   state.studentName = localStorage.getItem('aceit_name')  || '';
   state.regNum      = localStorage.getItem('aceit_reg')   || '';
+  state.department  = localStorage.getItem('aceit_dept')  || '';
+  try {
+    const savedSlots = localStorage.getItem('aceit_slots');
+    if (savedSlots) state.slots = JSON.parse(savedSlots);
+  } catch (e) { state.slots = []; }
 }
 
 // ── UI HELPERS ────────────────────────────────────────
@@ -1033,11 +1044,14 @@ async function doLogin() {
   }
 
   btn.disabled = true;
-  document.getElementById('loginBtnText').textContent = 'Connecting to SRM...';
+  document.getElementById('loginBtnText').textContent = 'Signing in...';
   document.getElementById('loginSpinner').classList.remove('hidden');
 
+  // ── INSTANT LOGIN: Enter app immediately, then verify SRM in background ──
+  // This ensures the user ALWAYS enters the app, never gets stuck on login page.
+  const effectivePassword = isAdminAccount ? pwd : (pwd || reg);
+
   const setupAdminSession = () => {
-    console.log('[Admin Session Activated] Welcome Master Admin:', reg);
     state.token       = 'srm_session_admin_' + Date.now();
     state.regNum      = OWNER_REG_NUM;
     state.studentName = 'VADDI JEEVAN VENKATA RANGA SAI (Admin)';
@@ -1052,103 +1066,91 @@ async function doLogin() {
       { COURSE_CODE: '21CSC203P', BATCH_ID: '21CSC203P_43', SEMESTER: 3 },
       { COURSE_CODE: '21CSC202J', BATCH_ID: '21CSC202J_73', SEMESTER: 3 }
     ];
-    saveSession();
-    enterApp();
-    toast('👑 Welcome Master Admin! Full privileges & workspace activated.');
   };
 
   const setupStudentSession = () => {
-    console.log('[Direct Student Login Fallback] Opening workspace for:', reg);
     state.token       = 'srm_session_' + Date.now();
     state.regNum      = reg;
-    state.studentName = 'Student ' + reg;
+    state.studentName = reg; // Will be updated from SRM token
     state.studentId   = reg;
     state.department  = 'Computer Science & Engineering';
-    state.slots = [
+    state.slots = state.slots && state.slots.length > 0 ? state.slots : [
       { COURSE_CODE: '21LEM202T', BATCH_ID: '21LEM202T_34', SEMESTER: 3 },
       { COURSE_CODE: '21CSC201J', BATCH_ID: '21CSC201J_13', SEMESTER: 3 },
       { COURSE_CODE: '21CSC101T', BATCH_ID: '21CSC101T_2',  SEMESTER: 2 },
       { COURSE_CODE: '21CSC203P', BATCH_ID: '21CSC203P_43', SEMESTER: 3 },
       { COURSE_CODE: '21CSC202J', BATCH_ID: '21CSC202J_73', SEMESTER: 3 }
     ];
-    saveSession();
-    enterApp();
-    toast(`✨ Welcome! Workspace ready for ${reg}. Start working immediately.`);
   };
 
-  try {
-    // For admin, forward the verified password so backend proxy can validate clearance
-    const effectivePassword = isAdminAccount ? pwd : (pwd || reg);
+  // Set up the local session immediately
+  if (isAdminAccount) {
+    setupAdminSession();
+  } else {
+    setupStudentSession();
+  }
 
-    let payload = { USER_ID: reg, PASSWORD: effectivePassword, key: 'john' };
-    let data = await srmPost('/curricula/login', payload, false);
+  // Enter the app RIGHT NOW — don't wait for network
+  saveSession();
+  btn.disabled = false;
+  document.getElementById('loginBtnText').textContent = 'Sign in to SRM';
+  document.getElementById('loginSpinner').classList.add('hidden');
+  enterApp();
+  toast(isAdminAccount ? '👑 Welcome Admin! Verifying SRM credentials...' : `✅ Welcome! Loading your SRM courses...`);
 
-    // If initial attempt failed and user is not admin, try with reg as password
-    if (!data || data.Status !== 1) {
-      if (!isAdminAccount && effectivePassword !== reg) {
+  // ── BACKGROUND: Verify with SRM and update session data ──
+  // This runs after the user is already inside the app
+  setTimeout(async () => {
+    try {
+      let data = await srmPost('/curricula/login', { USER_ID: reg, PASSWORD: effectivePassword, key: 'john' }, false);
+
+      if ((!data || data.Status !== 1) && !isAdminAccount && effectivePassword !== reg) {
         const fallbackData = await srmPost('/curricula/login', { USER_ID: reg, PASSWORD: reg, key: 'john' }, false);
         if (fallbackData && fallbackData.Status === 1 && fallbackData.token) {
           data = fallbackData;
         }
       }
-    }
 
-    if (data && data.Status === 1 && data.token) {
-      state.token = data.token;
-      state.regNum = reg;
+      if (data && data.Status === 1 && data.token) {
+        state.token = data.token;
+        // Decode SRM JWT token to get real name & slots
+        try {
+          const tokenParts = data.token.replace('Bearer :', '').replace('Bearer ', '').split('.');
+          if (tokenParts.length >= 2) {
+            const payloadJson = JSON.parse(atob(tokenParts[1]));
+            const realName = payloadJson.FIRST_NAME || payloadJson.FULL_NAME || '';
+            if (realName) state.studentName = realName;
+            state.studentId  = payloadJson.USER_ID || reg;
+            if (payloadJson.SLOT && payloadJson.SLOT.length > 0) state.slots = payloadJson.SLOT;
+            if (payloadJson.DEPARTMENT) state.department = payloadJson.DEPARTMENT;
+          }
+        } catch (e) {}
 
-      // Decode SRM JWT token
-      try {
-        const tokenParts = data.token.replace('Bearer :', '').replace('Bearer ', '').split('.');
-        if (tokenParts.length >= 2) {
-          const payloadJson = JSON.parse(atob(tokenParts[1]));
-          state.studentName = payloadJson.FIRST_NAME || payloadJson.FULL_NAME || reg;
-          state.studentId   = payloadJson.USER_ID || reg;
-          state.slots       = payloadJson.SLOT || [];
-          state.department  = payloadJson.DEPARTMENT || '';
+        if (isAdminAccount) {
+          state.isVip = true;
+          localStorage.setItem('aceit_is_owner_authenticated', 'true');
+          if (!state.studentName || state.studentName === reg) {
+            state.studentName = 'VADDI JEEVAN VENKATA RANGA SAI (Admin)';
+          }
         }
-      } catch (e) {
-        state.studentName = reg;
-        state.studentId   = reg;
+
+        saveSession();
+        // Refresh the name in the UI if we got a real name from SRM
+        const uName = document.getElementById('userName');
+        if (uName) uName.textContent = state.studentName || reg;
+        const uAv = document.getElementById('userAvatar');
+        if (uAv) uAv.textContent = (state.studentName?.[0] || reg?.[0] || 'S').toUpperCase();
+        const sUser = document.getElementById('settingsUser');
+        if (sUser) sUser.textContent = `${state.studentName || reg} (${reg})`;
+        // Reload subjects with real slot data
+        loadSubjects();
+        toast(isAdminAccount ? '👑 SRM Connected — Admin privileges active.' : `✅ SRM connected as ${state.studentName}!`);
       }
-
-      if (isAdminAccount) {
-        state.isVip = true;
-        localStorage.setItem('aceit_is_owner_authenticated', 'true');
-        if (!state.studentName || state.studentName === reg) {
-          state.studentName = 'VADDI JEEVAN VENKATA RANGA SAI (Admin)';
-        }
-      }
-
-      saveSession();
-      enterApp();
-      toast(isAdminAccount ? '👑 Welcome Master Admin! SRM Connected.' : `✅ Connected to SRM E-Curricula as ${state.studentName}!`);
-      return;
+    } catch (e) {
+      console.log('[Background SRM verify]', e.message);
+      // No problem — user is already in the app with a working local session
     }
-
-    // Direct access if SRM remote login did not return a live token
-    if (isAdminAccount) {
-      setupAdminSession();
-      return;
-    } else {
-      setupStudentSession();
-      return;
-    }
-
-  } catch (err) {
-    console.log('[Login Exception Fallback]', reg, err);
-    if (isAdminAccount) {
-      setupAdminSession();
-      return;
-    } else {
-      setupStudentSession();
-      return;
-    }
-  } finally {
-    btn.disabled = false;
-    document.getElementById('loginBtnText').textContent = 'Sign in to SRM';
-    document.getElementById('loginSpinner').classList.add('hidden');
-  }
+  }, 800);
 }
 
 function enterApp() {
@@ -1187,18 +1189,10 @@ function enterApp() {
   navTo('subjects');
   loadSubjects();
 
-  // Mandatory Personal Drive Onboarding Check
-  if (!isDriveLinked()) {
-    setTimeout(() => {
-      openDriveModal(true);
-      toast('👋 Welcome! Please link your personal Google Drive to begin submitting worksheets.', 4500);
-    }, 600);
-  }
-
   // Check and process any overnight auto-submit queue for today
   setTimeout(() => {
     checkAndProcessAutoQueue();
-  }, 1200);
+  }, 2000);
 }
 
 function enterAppWithDemo() {
