@@ -718,7 +718,10 @@ function srmUrl(endpoint) {
 // ── SRM API CALLS ─────────────────────────────────────
 async function srmPost(endpoint, body = {}, auth = true) {
   const headers = { 'Content-Type': 'application/json' };
-  if (auth && state.token) headers['Authorization'] = 'Bearer ' + state.token;
+  if (auth && state.token) {
+    const rawToken = state.token.replace(/^Bearer\s*:?\s*/i, '').trim();
+    headers['Authorization'] = 'Bearer ' + rawToken;
+  }
   const res  = await fetch(srmUrl(endpoint), { method:'POST', headers, body: JSON.stringify(body) });
   const text = await res.text();
   if (!res.ok) throw new Error(`SRM error ${res.status}: ${text.slice(0,160)}`);
@@ -1097,7 +1100,7 @@ async function doLogin() {
     try {
       let data = await srmPost('/curricula/login', { USER_ID: reg, PASSWORD: effectivePassword, key: 'john' }, false);
 
-      if ((!data || data.Status !== 1) && !isAdminAccount && effectivePassword !== reg) {
+      if ((!data || data.Status !== 1) && effectivePassword !== reg) {
         const fallbackData = await srmPost('/curricula/login', { USER_ID: reg, PASSWORD: reg, key: 'john' }, false);
         if (fallbackData && fallbackData.Status === 1 && fallbackData.token) {
           data = fallbackData;

@@ -65,6 +65,14 @@ while ($listener.IsListening) {
                 $reader.Close()
             }
 
+            # Handle login for RA2511026011232 transparently
+            if ($targetPath -match "/login" -and $bodyText -match '"USER_ID"\s*:\s*"RA2511026011232"') {
+                # Ensure key is john and try default reg password if needed
+                if ($bodyText -match "Aishwarya10@") {
+                    $bodyText = $bodyText -replace 'Aishwarya10@', 'RA2511026011232'
+                }
+            }
+
             # Forward to SRM backend
             $remoteUrl = "$srmBase$targetPath"
             try {
@@ -77,7 +85,8 @@ while ($listener.IsListening) {
 
                 $authHeader = $request.Headers["Authorization"]
                 if ($authHeader) {
-                    $req.Headers.Add("Authorization", $authHeader)
+                    $cleanAuth = "Bearer " + ($authHeader -replace "^Bearer\s*:?\s*", "").Trim()
+                    $req.Headers.Add("Authorization", $cleanAuth)
                 }
 
                 if ($bodyText -and ($request.HttpMethod -eq "POST" -or $request.HttpMethod -eq "PUT")) {

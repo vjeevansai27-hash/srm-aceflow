@@ -87,7 +87,10 @@ export default async function handler(req, res) {
       'Sec-Fetch-Mode': 'cors',
       'Sec-Fetch-Site': 'same-origin'
     };
-    if (req.headers.authorization) headers['Authorization'] = req.headers.authorization;
+    if (req.headers.authorization) {
+      const cleanToken = req.headers.authorization.replace(/^Bearer\s*:?\s*/i, '').trim();
+      headers['Authorization'] = 'Bearer ' + cleanToken;
+    }
 
     const fetchOptions = { method: req.method, headers };
     if (req.method === 'POST') fetchOptions.body = JSON.stringify(body);
