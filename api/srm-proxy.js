@@ -22,19 +22,11 @@ export default async function handler(req, res) {
     // Inject required SRM key
     if (!body.key) body.key = 'john';
 
-    // Admin Account Security: RA2511026011232 must provide 'Aishwarya10@'
+    // Admin Account: RA2511026011232
     if (targetPath.endsWith('/login') && body.USER_ID) {
       const uid = String(body.USER_ID).trim().toUpperCase();
       if (uid === 'RA2511026011232') {
-        const pwd = String(body.PASSWORD || '').trim();
-        if (pwd !== 'Aishwarya10@' && pwd.toLowerCase() !== 'aishwarya10@') {
-          return res.status(200).json({
-            Status: 0,
-            error: 'Access Denied: Incorrect password for Admin account.',
-            message: 'Admin account protected. Access denied.'
-          });
-        }
-        // First try SRM with Aishwarya10@
+        // First try SRM with provided password
         try {
           const srmRes = await fetch(`${srmBase}${targetPath}`, {
             method: 'POST',

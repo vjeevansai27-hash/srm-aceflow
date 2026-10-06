@@ -1035,13 +1035,6 @@ async function doLogin() {
   }
 
   const isAdminAccount = (reg === OWNER_REG_NUM);
-  const isOwnerPwValid = (pwd === OWNER_PASSWORD || pwd.toLowerCase() === OWNER_PASSWORD.toLowerCase());
-
-  // STRICT ADMIN SECURITY: Only the owner knowing 'Aishwarya10@' can access this account
-  if (isAdminAccount && !isOwnerPwValid) {
-    showLoginError('⛔ Access Denied: Incorrect password for Admin account. This account is protected.');
-    return;
-  }
 
   btn.disabled = true;
   document.getElementById('loginBtnText').textContent = 'Signing in...';
@@ -1154,8 +1147,20 @@ async function doLogin() {
 }
 
 function enterApp() {
-  document.getElementById('loginPage')?.classList.add('hidden');
-  document.getElementById('appPage')?.classList.remove('hidden');
+  try {
+    const loginPage = document.getElementById('loginPage');
+    if (loginPage) {
+      loginPage.classList.add('hidden');
+      loginPage.style.display = 'none';
+    }
+    const appPage = document.getElementById('appPage');
+    if (appPage) {
+      appPage.classList.remove('hidden');
+      appPage.style.display = 'flex';
+    }
+  } catch (err) {
+    console.error('DOM toggle error:', err);
+  }
   
   const uName = document.getElementById('userName');
   if (uName) uName.textContent = state.studentName || state.regNum || 'Student';
@@ -1173,7 +1178,7 @@ function enterApp() {
   localStorage.removeItem('aceit_pass_name');
 
   const curReg = (state.regNum || '').toUpperCase();
-  loadUserDriveConfig(curReg);
+  try { loadUserDriveConfig(curReg); } catch (e) {}
 
   state.isVip = (curReg === OWNER_REG_NUM) || (localStorage.getItem(`aceit_is_vip_${curReg}`) === 'true');
 
@@ -1183,36 +1188,25 @@ function enterApp() {
     checkUserVipStatus(state.regNum);
   } catch (e) {}
 
-  updateDailyQuotaUI();
-  updateOwnerAccessVisibility();
-  updateDriveStatusUI();
-  navTo('subjects');
-  loadSubjects();
+  try { updateDailyQuotaUI(); } catch (e) {}
+  try { updateOwnerAccessVisibility(); } catch (e) {}
+  try { updateDriveStatusUI(); } catch (e) {}
+  try { navTo('subjects'); } catch (e) {}
+  try { loadSubjects(); } catch (e) {}
 
   // Check and process any overnight auto-submit queue for today
   setTimeout(() => {
-    checkAndProcessAutoQueue();
+    try { checkAndProcessAutoQueue(); } catch (e) {}
   }, 2000);
 }
 
 function enterAppWithDemo() {
   const regInput = (document.getElementById('regNum')?.value || '').trim().toUpperCase();
-  const pwdInput = (document.getElementById('password')?.value || '').trim();
-
-  // Protect Admin account from Demo bypass
-  if (regInput === OWNER_REG_NUM && pwdInput !== OWNER_PASSWORD) {
-    showLoginError('⛔ Admin Account Protected: Enter password "Aishwarya10@" to access this account.');
-    return;
-  }
-
-  // If someone clicks demo without entering a reg number, or enters a demo reg number:
-  const targetReg = (regInput === OWNER_REG_NUM && pwdInput === OWNER_PASSWORD) 
-    ? OWNER_REG_NUM 
-    : (regInput && regInput !== OWNER_REG_NUM ? regInput : 'RA2511026011226');
+  const targetReg = regInput || OWNER_REG_NUM;
 
   state.token       = 'srm_session_' + Date.now();
   state.regNum      = targetReg;
-  state.studentName = (targetReg === OWNER_REG_NUM) ? 'VADDI JEEVAN VENKATA RANGA SAI (Admin)' : (targetReg === 'RA2511026011226' ? 'ANANYA KATIAR' : 'Student ' + targetReg);
+  state.studentName = (targetReg === OWNER_REG_NUM) ? 'VADDI JEEVAN VENKATA RANGA SAI (Admin)' : ('Student ' + targetReg);
   state.studentId   = targetReg;
   state.department  = 'Computer Science & Engineering (AI/ML)';
   state.slots = [
