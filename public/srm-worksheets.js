@@ -773,6 +773,152 @@ function findKnownSLO(courseCode, sessionNum, sloNum, stateOrTopic) {
 }
 
 // ═════════════════════════════════════════════════════════════════════
+// FALLBACK WORKSHEET EVALUATION GENERATOR (FOR PRACTICAL LAB COURSES LIKE 21CSC203P)
+// ═════════════════════════════════════════════════════════════════════
+function generateFallbackQuestionsForSubject(courseCode, sessionNum, sloNum, sessionTopic = '', sloTitle = '') {
+  const c = (courseCode || '').toUpperCase();
+  const numOnly = parseInt(String(sessionNum).replace(/\D/g, ''), 10) || 1;
+  const baseSess = numOnly >= 100 ? (numOnly % 100) : numOnly;
+
+  // 1. ADVANCED PROGRAMMING PRACTICE (21CSC203P - APP)
+  if (c.includes('CSC203') || c.includes('APP')) {
+    if (baseSess === 1) {
+      if (sloNum === 1) {
+        return [
+          {
+            q: 'Explain the syntax and semantics of variable declarations and primitive data types in Java.',
+            a: '1. Theoretical Principle & Syntax:\nJava is a strongly typed, object-oriented language. A variable declaration reserves memory based on its declared type:\nSyntax: data_type identifier [= initial_value];\n\n2. Memory & Semantics:\n- Primitive types (byte, short, int, long, float, double, char, boolean) store values directly on the thread stack frame.\n- Reference variables hold 32-bit or 64-bit memory addresses pointing to objects on the JVM Heap.\n\n3. Verification Example:\n```java\nint count = 10;        // 32-bit signed two\'s complement integer\ndouble rate = 0.085;    // 64-bit IEEE 754 floating point literal\nchar grade = \'A\';       // 16-bit Unicode character\n```\nCompiler performs strict type-checking during compile time.'
+          },
+          {
+            q: 'Describe the compilation and execution architecture of Java programs (JVM, JRE, JDK).',
+            a: '1. Architecture Model:\nJava uses a two-stage execution architecture combining both compilation and interpretation.\n- JDK: Contains compiler (javac), debugger, and development tools.\n- JRE: Contains the Java Virtual Machine and standard runtime class libraries.\n- JVM: Abstract machine executing bytecode instructions.\n\n2. Step-by-Step Execution Trace:\n- Step 1: javac converts source file (.java) to platform-independent bytecode (.class).\n- Step 2: ClassLoader dynamically loads binary bytecodes into memory.\n- Step 3: Bytecode Verifier checks for illegal memory access and stack overflow risks.\n- Step 4: Execution Engine (Interpreter + HotSpot JIT Compiler) translates bytecode into native CPU instructions.'
+          },
+          {
+            q: 'Differentiate between procedural and object-oriented programming paradigms with Java code snippets.',
+            a: '1. Paradigm Comparison:\n- Procedural (e.g. C): Organized around functions and sequential control flow. Data and logic are separated.\n- Object-Oriented (e.g. Java): Organized around encapsulated objects binding state (fields) and behavior (methods).\n\n2. Implementation Pattern:\n```java\npublic class Rectangle {\n    private double width, height; // Encapsulated state\n    public Rectangle(double w, double h) { this.width = w; this.height = h; }\n    public double calculateArea() { return this.width * this.height; } // Behavior\n}\n```\n\n3. Engineering Inferences:\nEncapsulation prevents unauthorized state modification and promotes high modularity and code reuse.'
+          }
+        ];
+      } else {
+        return [
+          {
+            q: 'Write a Java program to evaluate arithmetic expressions and demonstrate type promotion rules.',
+            a: '1. Type Promotion Invariant:\nIn Java binary arithmetic expressions:\n- byte, short, and char are automatically promoted to int.\n- If any operand is long, float, or double, the entire expression is promoted to that respective type.\n\n2. Implementation Pattern:\n```java\npublic class TypePromotionDemo {\n    public static void main(String[] args) {\n        byte b = 42;\n        char c = \'a\';\n        short s = 1024;\n        int i = 50000;\n        float f = 5.67f;\n        double d = 0.1234;\n        double result = (f * b) + (i / c) - (d * s);\n        System.out.println("Computed Result: " + result);\n    }\n}\n```\n\n3. Complexity & Memory:\nTime Complexity: O(1) arithmetic instruction execution; Space Complexity: O(1) stack allocation.'
+          },
+          {
+            q: 'Explain the role of lexical tokens in Java syntax analysis.',
+            a: '1. Theoretical Definition:\nA token is the smallest lexical unit recognizable by the lexical analyzer (lexer) during compiler parsing.\n\n2. Java Token Categories:\n- Keywords: Reserved words defining grammar (class, public, static, void, int).\n- Identifiers: User-defined names for classes, variables, and methods.\n- Literals: Constant values represented directly in code (100, 3.14, "SRM").\n- Operators: Symbols triggering computational evaluations (+, -, *, &&).\n- Separators: Punctuators structuring code blocks (;, {}, (), []).'
+          },
+          {
+            q: 'Discuss memory management in JVM heap vs stack space during execution.',
+            a: '1. JVM Memory Hierarchy:\n- Stack Memory: Allocated per-thread; stores method frames, primitive local variables, and object references. Allocation and deallocation are LIFO and instantaneous.\n- Heap Memory: Global shared memory storing all instantiated objects and instance variables. Managed automatically by the Garbage Collector (G1 / ZGC).\n\n2. Comparative Metrics:\n- Lifecycle: Stack frames exist during method execution; Heap objects persist until unreferenced.\n- Overflow Errors: StackOverflowError vs OutOfMemoryError (OOM).'
+          }
+        ];
+      }
+    }
+
+    if (baseSess === 2) {
+      return [
+        {
+          q: 'Explain implicit type casting (widening) versus explicit type casting (narrowing) in Java.',
+          a: '1. Theoretical Principle:\n- Widening Conversion (Implicit): Converting a smaller data type to a larger type without data loss: byte -> short -> int -> long -> float -> double.\n- Narrowing Conversion (Explicit): Converting a larger type to a smaller type requiring explicit cast operator: (target_type). Prone to overflow and truncation.\n\n2. Code Demonstration:\n```java\nint originalInt = 130;\nbyte narrowedByte = (byte) originalInt; // Results in -126 due to two\'s complement wraparound\ndouble preciseVal = 10.75;\nint truncatedInt = (int) preciseVal;   // Results in 10 (fractional part discarded)\n```\n\n3. Analytical Verification:\nNarrowing must be safeguarded with boundary validation checks to prevent arithmetic inaccuracies.'
+        },
+        {
+          q: 'Write a Java program to implement bitwise shift operators (<<, >>, >>>) and analyze their effects.',
+          a: '1. Bitwise Shift Rules:\n- Left Shift (<<): Shifts binary bits left, padding zeros on right. Multiplies by 2^n.\n- Signed Right Shift (>>): Shifts right, preserving sign bit. Divides by 2^n.\n- Unsigned Right Shift (>>>): Shifts right, padding zeros on left regardless of sign.\n\n2. Implementation Pattern:\n```java\npublic class BitShiftDemo {\n    public static void main(String[] args) {\n        int val = -16;\n        System.out.println("val << 2  : " + (val << 2));  // -64\n        System.out.println("val >> 2  : " + (val >> 2));  // -4\n        System.out.println("val >>> 2 : " + (val >>> 2)); // 1073741820\n    }\n}\n```\n\n3. Complexity:\nTime Complexity: O(1) single CPU cycle ALU operation.'
+        },
+        {
+          q: 'Discuss operator precedence and associativity in Java expression evaluation.',
+          a: '1. Architectural Rule:\nPrecedence dictates which operators are evaluated first; Associativity dictates evaluation order when operators share identical precedence (left-to-right for most arithmetic, right-to-left for assignments).\n\n2. Evaluation Trace:\nFor expression: int x = 5 + 3 * 2 - 4 / 2;\n- Step 1: Multiplication: 3 * 2 = 6\n- Step 2: Division: 4 / 2 = 2\n- Step 3: Addition: 5 + 6 = 11\n- Step 4: Subtraction: 11 - 2 = 9\n\n3. Best Practice:\nAlways employ explicit parentheses () to guarantee clarity and eliminate ambiguity.'
+        }
+      ];
+    }
+
+    if (baseSess === 3 || baseSess === 4) {
+      return [
+        {
+          q: 'Differentiate between while, do-while, and enhanced for loops in Java with comparative use cases.',
+          a: '1. Loop Invariants & Constructs:\n- while Loop: Entry-controlled loop; checks boolean condition before executing loop body. Executes 0 or more times.\n- do-while Loop: Exit-controlled loop; executes loop body first, then evaluates condition. Guaranteed to execute at least once.\n- Enhanced for Loop (for-each): Traverses arrays and Iterable collections without explicit index counters.\n\n2. Implementation Pattern:\n```java\nint[] data = {10, 20, 30, 40, 50};\nfor (int item : data) {\n    if (item == 30) continue; // Skip element\n    System.out.println("Processed: " + item);\n}\n```\n\n3. Complexity:\nTime Complexity: O(N) for complete traversal; Auxiliary Space: O(1).'
+        },
+        {
+          q: 'Write a Java program to demonstrate labeled break and continue statements in nested loops.',
+          a: '1. Algorithmic Principle:\nLabeled break and continue permit exiting or resuming outer loop iterations from within deeply nested loops without auxiliary boolean flags.\n\n2. Implementation Pattern:\n```java\npublic class LabeledLoopDemo {\n    public static void main(String[] args) {\n        outerLoop:\n        for (int i = 1; i <= 3; i++) {\n            for (int j = 1; j <= 3; j++) {\n                if (i * j == 4) break outerLoop;\n                System.out.println(i + " * " + j + " = " + (i * j));\n            }\n        }\n    }\n}\n```\n\n3. Performance Metric:\nEliminates redundant loop cycles, optimizing worst-case execution time.'
+        },
+        {
+          q: 'Explain the switch-case construct in Java including String and enum support.',
+          a: '1. Architecture & Evolution:\nModern Java compiles switch-case into either tableswitch or lookupswitch bytecode based on case density. Since Java 7, String expressions are supported using String.hashCode() followed by String.equals() verification.\n\n2. Invariant Requirements:\nCase values must be compile-time constants. Each case block should terminate with a break statement to avoid unintentional fall-through behavior.'
+        }
+      ];
+    }
+
+    if (baseSess === 5 || baseSess === 6) {
+      return [
+        {
+          q: 'Explain single-dimensional and multidimensional array memory representation in Java.',
+          a: '1. Architectural Memory Model:\nUnlike C/C++ where 2D arrays are stored in a contiguous linear memory block, Java represents multidimensional arrays as arrays of array references (ragged/jagged arrays).\n- Outer array holds references to inner array objects allocated across JVM heap.\n\n2. Implementation Pattern:\n```java\nint[][] matrix = new int[3][];\nmatrix[0] = new int[2];\nmatrix[1] = new int[4]; // Jagged allocation\nmatrix[2] = new int[3];\n```\n\n3. Complexity & Boundary Checks:\nAccess Time: O(1) per indexing operation; JVM performs automatic ArrayIndexOutOfBoundsException verification on every lookup.'
+        },
+        {
+          q: 'Compare String, StringBuilder, and StringBuffer in Java with performance benchmarks.',
+          a: '1. Foundational Distinctions:\n- String: Immutable. Concatenations create new heap objects, utilizing the String Constant Pool (SCP).\n- StringBuilder: Mutable and unsynchronized. Ideal for single-threaded string construction with maximum performance.\n- StringBuffer: Mutable and synchronized (thread-safe). Operations possess synchronized overhead.\n\n2. Benchmark Code:\n```java\nStringBuilder sb = new StringBuilder("SRM");\nfor (int i = 0; i < 1000; i++) sb.append(i);\nString finalStr = sb.toString();\n```\n\n3. Complexity:\nStringBuilder concatenation: O(1) amortized per append; String concatenation in loop: O(N^2).'
+        },
+        {
+          q: 'Write a Java method to check if a string is a palindrome ignoring case and non-alphanumeric characters.',
+          a: '1. Algorithmic Procedure (Two-Pointer Technique):\n- Step 1: Initialize left = 0, right = str.length() - 1.\n- Step 2: Skip non-alphanumeric characters using Character.isLetterOrDigit().\n- Step 3: Compare Character.toLowerCase() at both pointers.\n- Step 4: Increment left, decrement right until pointers cross.\n\n2. Implementation Pattern:\n```java\npublic static boolean isPalindrome(String s) {\n    int l = 0, r = s.length() - 1;\n    while (l < r) {\n        while (l < r && !Character.isLetterOrDigit(s.charAt(l))) l++;\n        while (l < r && !Character.isLetterOrDigit(s.charAt(r))) r--;\n        if (Character.toLowerCase(s.charAt(l)) != Character.toLowerCase(s.charAt(r))) return false;\n        l++; r--;\n    }\n    return true;\n}\n```\n\n3. Complexity:\nTime Complexity: O(N); Auxiliary Space Complexity: O(1).'
+        }
+      ];
+    }
+
+    if (baseSess >= 7 && baseSess <= 9) {
+      return [
+        {
+          q: 'Explain Constructor Chaining in Java using this() and super() keywords.',
+          a: '1. Foundational Concept:\nConstructor chaining is the mechanism of invoking one constructor from another within the same class (using this()) or from a subclass to its superclass (using super()).\n\n2. Invariant Rules:\n- Calls to this() or super() MUST be the very first statement in the constructor body.\n- Recursive constructor invocations are disallowed and caught by the compiler.\n\n3. Implementation Pattern:\n```java\nclass Account {\n    String id;\n    double balance;\n    public Account(String id) { this(id, 0.0); }\n    public Account(String id, double balance) {\n        this.id = id;\n        this.balance = balance;\n    }\n}\n```'
+        },
+        {
+          q: 'Demonstrate Runtime Polymorphism (Dynamic Method Dispatch) in Java with inheritance.',
+          a: '1. Dynamic Dispatch Principle:\nRuntime polymorphism is resolved during program execution through the JVM\'s virtual method table (vtable). A superclass reference can refer to a subclass object, and overridden methods execute the subclass version.\n\n2. Implementation Pattern:\n```java\nclass Sensor {\n    void read() { System.out.println("Generic Sensor reading..."); }\n}\nclass TemperatureSensor extends Sensor {\n    @Override\n    void read() { System.out.println("Temperature: 28.5 C"); }\n}\npublic class Main {\n    public static void main(String[] args) {\n        Sensor s = new TemperatureSensor();\n        s.read(); // Outputs: Temperature: 28.5 C\n    }\n}\n```\n\n3. Complexity:\nDispatch overhead: Single indirect table pointer dereference (O(1)).'
+        },
+        {
+          q: 'Explain the difference between Abstract Classes and Interfaces in modern Java (Java 8+).',
+          a: '1. Architectural Comparison:\n- Abstract Class: Represents "is-a" relationship; can maintain state (instance fields) and constructors; allows single inheritance.\n- Interface: Represents "can-do" contract; cannot maintain instance fields (only public static final constants); supports multiple inheritance.\n- Java 8+ Enhancements: Interfaces allow default and static methods with concrete bodies.\n\n2. Engineering Usage Guideline:\nUse abstract classes for code reuse among closely related classes; use interfaces to define polymorphic behavior across unrelated classes.'
+        }
+      ];
+    }
+
+    // Default Fallback for all other 21CSC203P sessions
+    return [
+      {
+        q: 'Explain JDBC Architecture and transaction management using PreparedStatement.',
+        a: '1. Theoretical Architecture:\nJava Database Connectivity (JDBC) is the industry-standard API abstracting relational database communication via vendor JDBC Drivers (Type 4 Pure Java Native Protocol).\n\n2. Secure Transaction Pattern:\n```java\nString query = "UPDATE accounts SET balance = balance - ? WHERE acc_no = ?";\ntry (Connection conn = DriverManager.getConnection(url, user, pass)) {\n    conn.setAutoCommit(false); // ACID Transaction boundary\n    try (PreparedStatement ps = conn.prepareStatement(query)) {\n        ps.setDouble(1, 500.0);\n        ps.setString(2, "ACC1002");\n        ps.executeUpdate();\n        conn.commit(); // Atomic commit\n    } catch (SQLException e) {\n        conn.rollback(); // Rollback on failure\n    }\n}\n```\n\n3. Architectural Advantages:\nPreparedStatement prevents SQL Injection attacks and precompiles SQL statements on the database server.'
+      },
+      {
+        q: 'Discuss Exception Handling in Java: Checked vs Unchecked Exceptions and try-with-resources.',
+        a: '1. Exception Hierarchy:\n- Checked Exceptions (subclasses of Exception excluding RuntimeException): Must be declared via throws or caught via try-catch (e.g. IOException, SQLException).\n- Unchecked Exceptions (subclasses of RuntimeException): Indicate programming logic faults (e.g. NullPointerException, ArithmeticException).\n\n2. Try-With-Resources (Java 7+):\nAny object implementing java.lang.AutoCloseable is guaranteed to be closed automatically upon block exit, eliminating resource leaks.'
+      },
+      {
+        q: 'Describe Thread Synchronization and Thread Safety in Java concurrency.',
+        a: '1. Concurrency Model:\nWhen multiple threads access shared mutable state, race conditions occur. The synchronized keyword enforces mutual exclusion using the object\'s intrinsic monitor lock.\n\n2. Code Pattern:\n```java\npublic synchronized void incrementCounter() {\n    this.count++;\n}\n```\n\n3. Alternative Primitives:\nAtomicInteger and ReentrantLock offer high-performance lock-free and fine-grained concurrency control.'
+      }
+    ];
+  }
+
+  // 2. Default Engineering Academic Fallback for all other courses
+  return [
+    {
+      q: 'Formulate the foundational theoretical principle and mathematical model for this session.',
+      a: '1. Concept & Theoretical Basis:\nThe session explores core architectural foundations, boundary conditions, and formal validation criteria.\n\n2. Analytical Working Steps:\n- Step 1: Constraint identification and state domain definition.\n- Step 2: Algorithmic decomposition and invariant verification.\n- Step 3: Computational trace across nominal and boundary inputs.\n\n3. Verification & Compliance:\nGuarantees adherence to university syllabus objectives and engineering standards.'
+    },
+    {
+      q: 'Provide step-by-step procedural implementation and code execution trace.',
+      a: '1. Implementation Logic:\nStructured modular code executing with deterministic complexity and boundary-safe memory allocation.\n\n2. Performance Metric:\nTime Complexity: O(N log N) or O(N); Auxiliary Space: O(1) bounded memory.'
+    },
+    {
+      q: 'Perform comparative critical analysis, trade-offs, and empirical conclusion.',
+      a: '1. Trade-off Evaluation:\nBalances execution throughput against memory footprint, ensuring loose coupling and long-term extensibility.\n\n2. Practical Outcome:\nSatisfies all assessment criteria for continuous learning assessment.'
+    }
+  ];
+}
+
+// ═════════════════════════════════════════════════════════════════════
 // EXTRACT SESSION WORKSHEET DATA (PRESERVING FULL OFFICIAL SECTIONS)
 // ═════════════════════════════════════════════════════════════════════
 function getSessionWorksheetData(sessionNum, sloNum, currentSessionData, state) {
@@ -855,6 +1001,11 @@ function getSessionWorksheetData(sessionNum, sloNum, currentSessionData, state) 
         }))
         .filter(x => x.q && x.q.length > 3);
     }
+  }
+
+  // Guaranteed Fallback if questions are empty (especially for 21CSC203P and practical courses)
+  if (!questionsList || questionsList.length === 0) {
+    questionsList = generateFallbackQuestionsForSubject(courseCode, sessionNum, sloNum, sessionTopic, sloTitle);
   }
 
   return {

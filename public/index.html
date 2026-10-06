@@ -788,12 +788,19 @@
 <div class="modal-bg hidden" id="pdfModal" style="align-items:stretch;padding:0">
   <div style="display:flex;flex-direction:column;width:100%;height:100%;background:#1f2937">
     <!-- PDF toolbar -->
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#111827;flex-shrink:0">
-      <div style="color:#fff;font-size:0.95rem;font-weight:700">📄 Answer Sheet Preview</div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button onclick="downloadPDF()" style="background:#1a3de4;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:0.85rem;font-weight:600;cursor:pointer">⬇ Download PDF</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#111827;flex-shrink:0;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div id="pdfModalTitle" style="color:#fff;font-size:0.95rem;font-weight:700">📄 Answer Sheet Preview</div>
+        <div style="display:inline-flex;background:#1e293b;border-radius:8px;padding:3px;border:1px solid #334155">
+          <button id="btnPreviewSlo1" onclick="switchPreviewSLO(1)" style="background:transparent;color:#93c5fd;border:none;padding:5px 12px;font-size:0.8rem;font-weight:700;border-radius:6px;cursor:pointer">Slot 1</button>
+          <button id="btnPreviewSlo2" onclick="switchPreviewSLO(2)" style="background:transparent;color:#94a3b8;border:none;padding:5px 12px;font-size:0.8rem;font-weight:700;border-radius:6px;cursor:pointer">Slot 2</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button onclick="downloadPDF()" style="background:#1a3de4;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.85rem;font-weight:600;cursor:pointer" title="Download currently previewed PDF">⬇ Download This PDF</button>
+        <button onclick="downloadBothPDFs()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.85rem;font-weight:600;cursor:pointer" title="Download BOTH Slot 1 and Slot 2 answered PDFs">⬇ Download BOTH PDFs</button>
         <button onclick="exportMathpixFromPreview()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.85rem;font-weight:600;cursor:pointer" title="Download Mathpix Markdown (.mmd) for snip.mathpix.com">📝 Export Mathpix MMD</button>
-        <button onclick="submitFromPreview()" style="background:#059669;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:0.85rem;font-weight:600;cursor:pointer">✅ Submit to SRM</button>
+        <button onclick="submitFromPreview()" style="background:#059669;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:0.85rem;font-weight:700;cursor:pointer" title="Submit BOTH Slot 1 and Slot 2 worksheets to SRM e-curricula">🚀 Submit BOTH to SRM</button>
         <button onclick="closePDFModal()" style="background:#374151;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.85rem;cursor:pointer">✕ Close</button>
       </div>
     </div>
